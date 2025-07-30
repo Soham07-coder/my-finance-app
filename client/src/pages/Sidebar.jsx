@@ -2,13 +2,13 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import styles from './Sidebar.module.css';
-import { FiGrid, FiBarChart2, FiSettings, FiDollarSign, FiRepeat } from 'react-icons/fi';
+import { FiGrid, FiBarChart2, FiSettings, FiRepeat } from 'react-icons/fi';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
     return (
         <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
             <div className={styles.logoSection}>
-                <h2 className={styles.logo}><FiDollarSign />MyFinance</h2>
+                <h2 className={styles.logo}>MyFinance</h2>
             </div>
             <nav className={styles.navSection}>
                 <h3 className={styles.sectionTitle}>Menu</h3>

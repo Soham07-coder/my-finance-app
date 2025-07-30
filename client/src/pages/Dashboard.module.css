@@ -1,18 +1,82 @@
 /* src/pages/Dashboard.module.css */
 .dashboard {
-    padding: 2rem;
+    padding: 1.5rem 2rem;
 }
 
+.centeredMessage {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 80vh;
+    font-size: 1.25rem;
+    color: #6b7280;
+}
+
+/* New Header Styles */
+.dashboardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+}
+
+.welcomeTitle {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #111827;
+}
+
+.addButton {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 1.2rem;
+    font-weight: 600;
+    color: white;
+    background-color: #2563eb;
+    border: none;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+.addButton:hover {
+    background-color: #1d4ed8;
+}
+
+/* Updated Grid Layout */
 .dashboardGrid {
     display: grid;
-    grid-template-columns: repeat(1, 1fr);
     gap: 1.5rem;
+    grid-template-columns: 1fr;
+    grid-template-areas:
+        "metrics"
+        "main"
+        "sidebar";
 }
 
 @media (min-width: 1024px) {
     .dashboardGrid {
         grid-template-columns: repeat(3, 1fr);
+        grid-template-areas:
+            "metrics metrics metrics"
+            "main main sidebar";
     }
+}
+
+.metrics {
+    grid-area: metrics;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1.5rem;
+}
+
+.mainContent {
+    grid-area: main;
+}
+
+.sidebar {
+    grid-area: sidebar;
 }
 
 .metricCard {
@@ -21,6 +85,15 @@
     border-radius: 0.75rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     border: 1px solid #e5e7eb;
+}
+
+.contentBox {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 0.75rem;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+    border: 1px solid #e5e7eb;
+    height: 100%;
 }
 
 .cardTitle {
@@ -44,35 +117,6 @@
     color: #dc2626;
 }
 
-.mainContent {
-    grid-column: span 1 / span 1;
-}
-
-@media (min-width: 1024px) {
-    .mainContent {
-        grid-column: span 2 / span 2;
-    }
-}
-
-.sidebar {
-    grid-column: span 1 / span 1;
-}
-
-@media (min-width: 1024px) {
-    .sidebar {
-        grid-column: span 1 / span 1;
-    }
-}
-
-.contentBox {
-    background-color: white;
-    padding: 1.5rem;
-    border-radius: 0.75rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
-    border: 1px solid #e5e7eb;
-    margin-top: 1.5rem;
-}
-
 .contentTitle {
     font-size: 1.25rem;
     font-weight: 600;
@@ -82,6 +126,7 @@
     border-bottom: 1px solid #e5e7eb;
 }
 
+/* Table styles */
 .table {
     width: 100%;
     text-align: left;
@@ -108,6 +153,10 @@
     border-bottom: 1px solid #e5e7eb;
 }
 
+.tableRow:last-child .td {
+    border-bottom: none;
+}
+
 .tdDescription {
     font-weight: 500;
     color: #111827;
@@ -115,8 +164,19 @@
 
 .tdCategory {
     font-size: 0.875rem;
+    color: #6b7280;
 }
 
+.amountCredit {
+    color: #059669;
+}
+
+.amountDebit {
+    color: #dc2626;
+}
+
+
+/* Chart styles */
 .chartContainer {
     width: 100%;
     margin-top: 1rem;

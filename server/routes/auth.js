@@ -3,7 +3,8 @@ const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const pool = require('../db'); // Import the pool from db.js
+const pool = require('../db');
+const authMiddleware = require('../middleware/authMiddleware'); // Import the middleware
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {
@@ -32,7 +33,6 @@ router.post('/register', async (req, res) => {
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
-    console.log('JWT Secret on login attempt:', process.env.JWT_SECRET);
     const { email, password } = req.body;
     try {
         const userResult = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
@@ -64,5 +64,25 @@ router.post('/login', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
+// --- NEWLY ADDED ROUTE ---
+// GET /api/auth/me
+// This route uses the middleware to verify the user's token and send back their data.
+router.get('/me', authMiddleware, async (req, res) => {
+    try {
+        // The user's ID is attached to the request object by the middleware (req.user.id)
+        const user = await pool.query('SELECT id, username, email FROM users WHERE id = $1', [
+            req.user.id
+        ]);
+        if (user.rows.length === 0) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+        res.json(user.rows[0]);
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 
 module.exports = router;

@@ -1,0 +1,61 @@
+/* src/index.css */
+
+/* 1. Base Body Styles */
+body {
+  margin: 0;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #f3f4f6;
+  /* Sets a consistent light gray background */
+}
+
+/* 2. Main Application Layout Grid */
+/* This defines the main structure with the sidebar and navbar */
+#root {
+  display: grid;
+  grid-template-areas: "sidebar navbar" "sidebar main";
+  grid-template-columns: 280px 1fr;
+  /* Sidebar width | a | Main content width */
+  grid-template-rows: 64px 1fr;
+  /* Navbar height | b | Main content height */
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+main {
+  grid-area: main;
+  overflow-y: auto;
+  /* Allows only the main content to scroll */
+}
+
+/* 3. Responsive Layout for Mobile */
+@media (max-width: 768px) {
+  #root {
+    grid-template-areas: "navbar" "main";
+    grid-template-columns: 1fr;
+  }
+}
+
+/* 4. Helper class for mobile sidebar overlay */
+/* This creates the dark background behind the sidebar on mobile */
+.sidebar-overlay {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar-overlay.open {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 999;
+    /* Ensures it's below the sidebar but above the main content */
+  }
+}

@@ -6,6 +6,9 @@ import Sidebar from './pages/Sidebar';
 import Dashboard from './pages/Dashboard';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import TransactionsPage from "./pages/TransactionsPage";
+import AddTransactionsPage from "./pages/AddTransactionPage";
+import FamilyPage from './pages/FamilyPage';
 import './index.css'; // Main CSS for the layout grid
 
 // Component to handle the main layout with Navbar and Sidebar
@@ -71,6 +74,25 @@ function App() {
             </PrivateRoute>
           }
         />
+        <Route
+          path="/transactions"
+          element={
+            <PrivateRoute isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+              <TransactionsPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route
+          path="/addtransactions"
+          element={
+            <PrivateRoute isSidebarOpen={isSidebarOpen} toggleSidebar={toggleSidebar}>
+              <AddTransactionsPage />
+            </PrivateRoute>
+          }
+        />
+
+        <Route path="/family" element={<PrivateRoute><FamilyPage /></PrivateRoute>} />
 
         {/* Fallback Route */}
         <Route path="*" element={<Navigate to="/dashboard" />} />

@@ -2,9 +2,16 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import styles from './Sidebar.module.css';
-import { FiGrid, FiBarChart2, FiSettings, FiRepeat } from 'react-icons/fi';
+import { FiGrid, FiRepeat, FiBarChart2, FiSettings, FiDollarSign, FiUsers } from 'react-icons/fi';
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
+
+    const handleLinkClick = () => {
+        if (window.innerWidth <= 768 && isOpen) {
+            toggleSidebar();
+        }
+    };
+
     return (
         <aside className={`${styles.sidebar} ${isOpen ? styles.open : ''}`}>
             <div className={styles.logoSection}>
@@ -23,6 +30,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
                             <FiRepeat className={styles.navIcon} /> Transactions
                         </NavLink>
                     </li>
+                    <li><NavLink to="/family" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`} onClick={handleLinkClick}><FiUsers className={styles.navIcon} /> My Family</NavLink></li>
                     <li>
                         <NavLink to="/analytics" className={({ isActive }) => `${styles.navLink} ${isActive ? styles.active : ''}`} onClick={toggleSidebar}>
                             <FiBarChart2 className={styles.navIcon} /> Analytics

@@ -60,7 +60,7 @@ function Dashboard() {
                 // Fetch user data and transactions at the same time for efficiency
                 const [userRes, transactionsRes] = await Promise.all([
                     axios.get('http://localhost:5000/api/auth/me', config),
-                    axios.get('http://localhost:5000/api/transactions', config)
+                    axios.post('http://localhost:5000/api/transactions/list', {}, config)
                 ]);
 
                 setUser(userRes.data);

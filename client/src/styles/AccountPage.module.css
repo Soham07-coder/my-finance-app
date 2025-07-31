@@ -1,0 +1,88 @@
+/* Required CSS for AccountPage.module.css */
+
+.accountPage {
+    padding: 2rem;
+    background-color: #f8fafc;
+}
+
+.accountPage h1 {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 1.5rem;
+}
+
+.card {
+    background-color: #fff;
+    border-radius: 0.75rem;
+    padding: 1.5rem 2rem;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.07);
+    border: 1px solid #e5e7eb;
+}
+
+.cardTitle {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-top: 0;
+    margin-bottom: 1rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.infoRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.infoRow:last-of-type {
+    border-bottom: none;
+}
+
+.label {
+    font-weight: 500;
+    color: #6b7280;
+}
+
+.value {
+    font-weight: 500;
+    color: #111827;
+}
+
+.code {
+    font-family: monospace;
+    background-color: #f3f4f6;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.25rem;
+    border: 1px solid #e5e7eb;
+}
+
+.membersTitle {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #f3f4f6;
+}
+
+.membersList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.membersList li {
+    padding: 0.5rem 0;
+    color: #374151;
+}
+
+.loading {
+    padding: 2rem;
+    font-size: 1.25rem;
+    color: #6b7280;
+    text-align: center;
+}

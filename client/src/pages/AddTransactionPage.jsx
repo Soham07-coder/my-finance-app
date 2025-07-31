@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import styles from './AddTransactionPage.module.css';
+import styles from '../styles/AddTransactionPage.module.css';
 import { FiArrowLeft } from 'react-icons/fi';
 
 function AddTransactionPage() {

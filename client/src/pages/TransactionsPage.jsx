@@ -1,7 +1,7 @@
 // src/pages/TransactionsPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import styles from './TransactionsPage.module.css';
+import styles from '../styles/TransactionsPage.module.css';
 import { useNavigate } from 'react-router-dom'; // Import useNavigate
 import { FiPlus, FiSearch } from 'react-icons/fi';
 

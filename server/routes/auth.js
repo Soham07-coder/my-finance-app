@@ -5,6 +5,61 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware'); // Import the middleware
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// --- NEW: Google Sign-In Route ---
+// @route   POST /api/auth/google
+// @desc    Authenticate user with Google token
+router.post('/google', async (req, res) => {
+    const { token } = req.body;
+    try {
+        const ticket = await client.verifyIdToken({
+            idToken: token,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const { name, email, sub: google_id } = ticket.getPayload();
+
+        // Check if user already exists
+        let userResult = await pool.query('SELECT * FROM users WHERE google_id = $1 OR email = $2', [google_id, email]);
+        let user = userResult.rows[0];
+
+        // If user does not exist, create a new user
+        if (!user) {
+            const newUserResult = await pool.query(
+                'INSERT INTO users (username, email, google_id) VALUES ($1, $2, $3) RETURNING *',
+                [name, email, google_id]
+            );
+            user = newUserResult.rows[0];
+        }
+        // If user exists but google_id is null (i.e., they signed up with email/password first), update their record
+        else if (!user.google_id) {
+            const updatedUserResult = await pool.query(
+                'UPDATE users SET google_id = $1 WHERE id = $2 RETURNING *',
+                [google_id, user.id]
+            );
+            user = updatedUserResult.rows[0];
+        }
+
+        // Create JWT payload
+        const payload = { user: { id: user.id, username: user.username } };
+
+        // Sign the token
+        jwt.sign(
+            payload,
+            process.env.JWT_SECRET,
+            { expiresIn: '5h' },
+            (err, appToken) => {
+                if (err) throw err;
+                res.json({ token: appToken });
+            }
+        );
+
+    } catch (err) {
+        console.error('Google auth error:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
 
 // POST /api/auth/register
 router.post('/register', async (req, res) => {

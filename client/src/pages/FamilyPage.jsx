@@ -1,7 +1,7 @@
 // src/pages/FamilyPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import styles from './FamilyPage.module.css';
+import styles from '../styles/FamilyPage.module.css';
 import { FiUsers, FiPlus, FiLogIn, FiCopy, FiCheck } from 'react-icons/fi';
 
 // Component to show when a user is already in a family
@@ -122,7 +122,6 @@ const NoFamilyDashboard = ({ onFamilyJoined }) => {
         </div>
     );
 };
-
 
 function FamilyPage() {
     const [familyData, setFamilyData] = useState(null);

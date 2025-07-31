@@ -71,7 +71,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', authMiddleware, async (req, res) => {
     try {
         // The user's ID is attached to the request object by the middleware (req.user.id)
-        const user = await pool.query('SELECT id, username, email FROM users WHERE id = $1', [
+        const user = await pool.query('SELECT id, username, email, family_id FROM users WHERE id = $1', [
             req.user.id
         ]);
         if (user.rows.length === 0) {

@@ -8,7 +8,7 @@
     align-items: center;
     gap: 1rem;
     margin-bottom: 1.5rem;
-    color: #111827;
+    color: var(--text-primary);
 }
 
 .headerIcon {
@@ -24,17 +24,16 @@
     background-color: #ffffff;
     padding: 2rem;
     border-radius: 0.75rem;
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--card-shadow);
 }
 
 .centeredMessage {
     text-align: center;
     padding: 2rem;
     font-size: 1.125rem;
-    color: #6b7280;
+    color: var(--text-secondary);
 }
 
-/* Styles for when user is IN a family */
 .familyTitle {
     font-size: 1.5rem;
     font-weight: 600;
@@ -69,7 +68,6 @@
     color: #4b5563;
 }
 
-/* New style for the copied message */
 .copiedMessage {
     position: absolute;
     top: 1rem;
@@ -86,7 +84,7 @@
     font-size: 1.25rem;
     font-weight: 600;
     margin-bottom: 1rem;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--border-color);
     padding-bottom: 0.5rem;
 }
 
@@ -108,7 +106,7 @@
     width: 48px;
     height: 48px;
     border-radius: 50%;
-    background-color: #3b82f6;
+    background-color: var(--primary-blue);
     color: white;
     display: flex;
     align-items: center;
@@ -119,16 +117,15 @@
 
 .memberName {
     font-weight: 500;
-    color: #111827;
+    color: var(--text-primary);
 }
 
 .memberRole {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--text-secondary);
     text-transform: capitalize;
 }
 
-/* Styles for when user is NOT in a family */
 .noFamilyGrid {
     display: grid;
     grid-template-columns: 1fr;
@@ -142,9 +139,15 @@
 }
 
 .formCard {
-    border: 1px solid #e5e7eb;
+    border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     padding: 1.5rem;
+    transition: box-shadow 0.2s, transform 0.2s;
+}
+
+.formCard:hover {
+    box-shadow: var(--card-shadow);
+    transform: translateY(-2px);
 }
 
 .formTitle {
@@ -158,17 +161,24 @@
 
 .formDescription {
     font-size: 0.875rem;
-    color: #6b7280;
+    color: var(--text-secondary);
     margin-bottom: 1.5rem;
 }
 
 .input {
     width: 100%;
     padding: 0.75rem;
-    border: 1px solid #d1d5db;
+    border: 1px solid var(--border-color);
     border-radius: 0.5rem;
     margin-bottom: 1rem;
     box-sizing: border-box;
+    transition: box-shadow 0.2s, border-color 0.2s;
+}
+
+.input:focus {
+    outline: none;
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
 }
 
 .button {
@@ -176,19 +186,24 @@
     padding: 0.75rem;
     font-weight: 600;
     color: white;
-    background-color: #2563eb;
+    background-color: var(--primary-blue);
     border: none;
     border-radius: 0.5rem;
     cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.button:hover {
+    background-color: var(--primary-blue-dark);
 }
 
 .button:disabled {
     opacity: 0.5;
+    cursor: not-allowed;
 }
 
 .errorMessage {
     grid-column: 1 / -1;
-    /* Span full width on grid */
     color: #dc2626;
     text-align: center;
     margin-top: 1rem;

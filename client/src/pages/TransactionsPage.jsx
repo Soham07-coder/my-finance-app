@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import styles from '../styles/TransactionsPage.module.css';
-import { useNavigate } from 'react-router-dom'; // Import useNavigate
+import { useNavigate } from 'react-router-dom';
 import { FiPlus, FiSearch } from 'react-icons/fi';
 
 function TransactionsPage() {
@@ -11,8 +11,7 @@ function TransactionsPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
-    const navigate = useNavigate(); // Initialize navigate hook
-
+    const navigate = useNavigate();
 
     useEffect(() => {
         const fetchDashboardData = async () => {
@@ -21,11 +20,11 @@ function TransactionsPage() {
             try {
                 const token = localStorage.getItem('token');
                 const config = { headers: { 'Authorization': `Bearer ${token}` } };
-                const [userRes, transactionsRes] = await Promise.all([
-                    axios.get('http://localhost:5000/api/auth/me', config),
-                    // Corrected to use POST for fetching transactions
-                    axios.post('http://localhost:5000/api/transactions/list', {}, config)
-                ]);
+                // Fetch user data via verify-token endpoint to ensure state is correct
+                const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
+
+                // Updated to use the new GET endpoint for personal transactions
+                const transactionsRes = await axios.get('http://localhost:5000/api/transactions/personal', config);
                 setTransactions(transactionsRes.data);
             } catch (err) {
                 console.error('Error fetching dashboard data:', err);
@@ -87,7 +86,8 @@ function TransactionsPage() {
                                 <td className={styles.td}>
                                     <span className={styles.categoryTag}>{t.category}</span>
                                 </td>
-                                <td className={styles.td}>{new Date(t.date).toLocaleDateString()}</td>
+                                {/* The date field is a Firestore Timestamp, so it's a bit more robust to parse */}
+                                <td className={styles.td}>{new Date(t.date?.toDate()).toLocaleDateString()}</td>
                                 <td className={`${styles.td} ${t.amount > 0 ? styles.income : styles.expense}`}>
                                     {t.amount > 0 ? '+' : '-'}₹{Math.abs(parseFloat(t.amount)).toFixed(2)}
                                 </td>

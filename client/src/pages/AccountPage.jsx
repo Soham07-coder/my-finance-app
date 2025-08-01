@@ -1,7 +1,7 @@
 // src/pages/AccountPage.jsx
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import styles from '../styles/AccountPage.module.css'; // Make sure this path is correct
+import styles from '../styles/AccountPage.module.css';
 import { FiUser, FiUsers, FiShield, FiTag, FiTrash2, FiPlus } from 'react-icons/fi';
 
 // --- Reusable Component for Info Rows ---
@@ -43,9 +43,10 @@ const CategoryManager = () => {
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}` } };
-            await axios.post('http://localhost:5000/api/categories', { name: newCategory.name, type: newCategory.type });
-            setNewCategory({ name: '', type: 'expense' }); // Reset form
-            fetchCategories(); // Refresh list
+            // The isFamilyCategory field must be added to the payload
+            await axios.post('http://localhost:5000/api/categories', { name: newCategory.name, type: newCategory.type, isFamilyCategory: false }, config);
+            setNewCategory({ name: '', type: 'expense' });
+            fetchCategories();
         } catch (err) {
             setError(err.response?.data?.msg || 'Failed to add category.');
         }
@@ -57,7 +58,7 @@ const CategoryManager = () => {
                 const token = localStorage.getItem('token');
                 const config = { headers: { 'Authorization': `Bearer ${token}` } };
                 await axios.delete(`http://localhost:5000/api/categories/${id}`, config);
-                fetchCategories(); // Refresh list
+                fetchCategories();
             } catch (err) {
                 alert(err.response?.data?.msg || 'Failed to delete category.');
             }
@@ -88,7 +89,8 @@ const CategoryManager = () => {
                         <li key={cat.id} className={styles.categoryItem}>
                             <span className={`${styles.categoryType} ${styles[cat.type]}`}>{cat.type}</span>
                             <span className={styles.categoryName}>{cat.name}</span>
-                            {!cat.is_default ? (
+                            {/* The property is now isDefault, not is_default */}
+                            {!cat.isDefault ? (
                                 <button onClick={() => handleDeleteCategory(cat.id)} className={styles.deleteButton} title="Delete Category">
                                     <FiTrash2 />
                                 </button>
@@ -116,9 +118,11 @@ function AccountPage() {
             try {
                 const token = localStorage.getItem('token');
                 const config = { headers: { 'Authorization': `Bearer ${token}` } };
-                const userRes = await axios.get('http://localhost:5000/api/auth/me', config);
+                // Using the new verify-token endpoint to get user data
+                const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
                 setUser(userRes.data);
-                if (userRes.data.family_id) {
+                // The property is now familyId, not family_id
+                if (userRes.data.familyId) {
                     const familyRes = await axios.get('http://localhost:5000/api/families/my-family', config);
                     setFamily(familyRes.data);
                 }
@@ -151,7 +155,8 @@ function AccountPage() {
                         {family ? (
                             <>
                                 <InfoRow label="Family Name" value={family.name} />
-                                <InfoRow label="Invite Code" value={family.invite_code} />
+                                {/* Invite code is now the family ID */}
+                                <InfoRow label="Family ID" value={family.id} />
                                 <h3 className={styles.membersTitle}>Members ({family.members.length})</h3>
                                 <ul className={styles.membersList}>
                                     {family.members.map(member => (

@@ -56,10 +56,5 @@ router.post('/verify-token', async (req, res) => {
     }
 });
 
-// The following routes are removed as Firebase Authentication handles them directly on the client-side:
-// - POST /api/auth/google (Google Sign-In is now handled by Firebase client SDK)
-// - POST /api/auth/register (User registration is handled by Firebase client SDK)
-// - POST /api/auth/login (User login is handled by Firebase client SDK)
-// - GET /api/auth/me (User data is fetched after token verification in /verify-token or directly via client SDK)
 
 module.exports = router;

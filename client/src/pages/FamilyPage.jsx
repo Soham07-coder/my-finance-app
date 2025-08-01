@@ -9,7 +9,8 @@ const FamilyDashboard = ({ familyData }) => {
     const [copied, setCopied] = useState(false);
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(familyData.invite_code);
+        // Copy the family ID to the clipboard
+        navigator.clipboard.writeText(familyData.id);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
     };
@@ -18,9 +19,9 @@ const FamilyDashboard = ({ familyData }) => {
         <div>
             <h2 className={styles.familyTitle}>{familyData.name}</h2>
             <div className={styles.inviteSection}>
-                <p>Invite others with this code:</p>
+                <p>Invite others with this Family ID:</p>
                 <div className={styles.inviteCodeBox}>
-                    <strong>{familyData.invite_code}</strong>
+                    <strong>{familyData.id}</strong>
                     <button onClick={copyToClipboard} className={styles.copyButton}>
                         {copied ? <FiCheck color="green" /> : <FiCopy />}
                     </button>
@@ -46,7 +47,7 @@ const FamilyDashboard = ({ familyData }) => {
 // Component to show when a user is NOT in a family
 const NoFamilyDashboard = ({ onFamilyJoined }) => {
     const [familyName, setFamilyName] = useState('');
-    const [inviteCode, setInviteCode] = useState('');
+    const [familyId, setFamilyId] = useState(''); // Updated to use familyId
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
@@ -73,7 +74,8 @@ const NoFamilyDashboard = ({ onFamilyJoined }) => {
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}` } };
-            await axios.post('http://localhost:5000/api/families/join', { invite_code: inviteCode }, config);
+            // Send familyId instead of invite_code
+            await axios.post('http://localhost:5000/api/families/join', { familyId: familyId }, config);
             onFamilyJoined();
         } catch (err) {
             setError(err.response?.data?.msg || 'Failed to join family.');
@@ -103,13 +105,13 @@ const NoFamilyDashboard = ({ onFamilyJoined }) => {
             </div>
             <div className={styles.formCard}>
                 <h3 className={styles.formTitle}><FiLogIn /> Join a Family</h3>
-                <p className={styles.formDescription}>Enter an invite code from a family member to join their space.</p>
+                <p className={styles.formDescription}>Enter a Family ID from a family member to join their space.</p>
                 <form onSubmit={handleJoinFamily}>
                     <input
                         type="text"
-                        placeholder="Enter 6-digit invite code"
-                        value={inviteCode}
-                        onChange={(e) => setInviteCode(e.target.value)}
+                        placeholder="Enter Family ID"
+                        value={familyId}
+                        onChange={(e) => setFamilyId(e.target.value)}
                         className={styles.input}
                         required
                     />
@@ -132,6 +134,7 @@ function FamilyPage() {
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}` } };
+            // The backend route is now a GET request
             const res = await axios.get('http://localhost:5000/api/families/my-family', config);
             setFamilyData(res.data);
         } catch (error) {
@@ -165,5 +168,4 @@ function FamilyPage() {
         </div>
     );
 }
-
 export default FamilyPage;

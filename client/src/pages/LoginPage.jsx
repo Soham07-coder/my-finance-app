@@ -1,9 +1,11 @@
 // src/pages/LoginPage.jsx
 import React, { useState } from 'react';
-import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
-import styles from '../styles/LoginPage.module.css'
+import styles from '../styles/LoginPage.module.css';
 import { GoogleLogin } from '@react-oauth/google';
+import { auth } from '../firebase'; // Import the Firebase auth instance
+import { signInWithEmailAndPassword } from 'firebase/auth'; // Firebase function for email/password login
+import axios from 'axios'; // Still needed for the Google Sign-In backend call
 
 function LoginPage() {
     const [formData, setFormData] = useState({ email: '', password: '' });
@@ -19,13 +21,25 @@ function LoginPage() {
         setError(''); // Clear previous errors
 
         try {
-            const res = await axios.post('http://localhost:5000/api/auth/login', formData);
-            localStorage.setItem('token', res.data.token);
+            // Use Firebase SDK to sign in with email and password
+            const userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
+            const user = userCredential.user;
+
+            // After a successful sign-in, get the Firebase ID token
+            const idToken = await user.getIdToken();
+
+            // Call your new backend endpoint to verify the token and get/create user data
+            // This is the new, single point of authentication for your app
+            const res = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken });
+
+            // Store the Firebase token in local storage for future requests
+            localStorage.setItem('token', idToken);
+            console.log("Logged in user data:", res.data); // Log the user data from your backend
             navigate('/dashboard');
         } catch (err) {
-            const errorMessage = err.response?.data?.msg || 'An unexpected error occurred. Please try again.';
-            setError(errorMessage); // Set the error message to be displayed
-            console.error(err.response?.data);
+            // Handle Firebase-specific errors
+            console.error("Firebase Login Error:", err.message);
+            setError('Invalid email or password. Please try again.');
         } finally {
             setIsLoading(false); // Stop loading
         }
@@ -35,10 +49,12 @@ function LoginPage() {
     const handleGoogleSuccess = async (credentialResponse) => {
         try {
             // Send the Google token to your backend
+            // NOTE: This call should also be updated to use the Firebase flow if your backend is fully Firebase-centric
+            // For now, let's keep the existing logic and assume your backend's /api/auth/google route
+            // has been updated to return a Firebase token.
             const res = await axios.post('http://localhost:5000/api/auth/google', {
                 token: credentialResponse.credential,
             });
-            // On success, your backend returns your app's JWT
             localStorage.setItem('token', res.data.token);
             navigate('/dashboard');
         } catch (err) {

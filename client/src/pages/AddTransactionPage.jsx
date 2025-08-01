@@ -8,7 +8,8 @@ import { FiArrowLeft } from 'react-icons/fi';
 function AddTransactionPage() {
     const [formData, setFormData] = useState({
         description: '', amount: '', category: '',
-        transaction_type: 'expense', date: new Date().toISOString().split('T')[0],
+        type: 'expense', // Updated from transaction_type to type
+        date: new Date().toISOString().split('T')[0],
     });
     const [isFamilyExpense, setIsFamilyExpense] = useState(false);
     const [user, setUser] = useState(null);
@@ -16,10 +17,7 @@ function AddTransactionPage() {
     const [isLoading, setIsLoading] = useState(false);
     const navigate = useNavigate();
 
-    // NEW: State for "Paid with Cash"
     const [isCashPayment, setIsCashPayment] = useState(false);
-
-    // This state will hold all categories fetched from the API
     const [categories, setCategories] = useState([]);
 
     useEffect(() => {
@@ -28,13 +26,16 @@ function AddTransactionPage() {
                 const token = localStorage.getItem('token');
                 const config = { headers: { 'Authorization': `Bearer ${token}` } };
 
-                const userRes = await axios.get('http://localhost:5000/api/auth/me', config);
+                // Get user data from the new verify-token endpoint
+                const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
                 setUser(userRes.data);
 
+                // Get categories from the new GET endpoint
                 const categoriesRes = await axios.get('http://localhost:5000/api/categories', config);
                 setCategories(categoriesRes.data);
 
-                const defaultExpenseCat = categoriesRes.data.find(c => c.type === 'expense' && c.is_default);
+                // The property is now isDefault, not is_default
+                const defaultExpenseCat = categoriesRes.data.find(c => c.type === 'expense' && c.isDefault);
                 if (defaultExpenseCat) {
                     setFormData(prev => ({ ...prev, category: defaultExpenseCat.name }));
                 }
@@ -45,7 +46,7 @@ function AddTransactionPage() {
         fetchData();
     }, []);
 
-    const { description, amount, category, transaction_type, date } = formData;
+    const { description, amount, category, type, date } = formData;
     const onChange = e => setFormData({ ...formData, [e.target.name]: e.target.value });
 
     const handleTypeChange = e => {
@@ -53,7 +54,7 @@ function AddTransactionPage() {
         const firstCatOfType = categories.find(c => c.type === newType);
         setFormData({
             ...formData,
-            transaction_type: newType,
+            type: newType, // Updated from transaction_type to type
             category: firstCatOfType ? firstCatOfType.name : ''
         });
     };
@@ -65,13 +66,13 @@ function AddTransactionPage() {
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` } };
-            const finalAmount = transaction_type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
+            const finalAmount = type === 'expense' ? -Math.abs(amount) : Math.abs(amount);
 
             const body = {
                 ...formData,
                 amount: finalAmount,
-                family_id: isFamilyExpense && user?.family_id ? user.family_id : null,
-                // NEW: Add isCashPayment to the body
+                // The property is now familyId, not family_id
+                familyId: isFamilyExpense && user?.familyId ? user.familyId : null,
                 isCashPayment: isCashPayment
             };
             await axios.post('http://localhost:5000/api/transactions', body, config);
@@ -83,7 +84,7 @@ function AddTransactionPage() {
         }
     };
 
-    const availableCategories = categories.filter(cat => cat.type === transaction_type);
+    const availableCategories = categories.filter(cat => cat.type === type); // Updated from transaction_type to type
 
     return (
         <div className={styles.pageContainer}>
@@ -94,7 +95,7 @@ function AddTransactionPage() {
             <div className={styles.formContainer}>
                 <form onSubmit={onSubmit}>
                     {error && <p className={styles.errorMessage}>{error}</p>}
-                    {user?.family_id && (
+                    {user?.familyId && ( // Check for familyId
                         <div className={styles.toggleGroup}>
                             <label className={styles.toggleLabel}>Transaction For:</label>
                             <div className={styles.toggleSwitch}>
@@ -108,8 +109,8 @@ function AddTransactionPage() {
                     <div className={styles.inputGroup}>
                         <label>Transaction Type</label>
                         <div className={styles.radioGroup}>
-                            <label><input type="radio" name="transaction_type" value="expense" checked={transaction_type === 'expense'} onChange={handleTypeChange} /> Expense</label>
-                            <label><input type="radio" name="transaction_type" value="income" checked={transaction_type === 'income'} onChange={handleTypeChange} /> Income</label>
+                            <label><input type="radio" name="type" value="expense" checked={type === 'expense'} onChange={handleTypeChange} /> Expense</label>
+                            <label><input type="radio" name="type" value="income" checked={type === 'income'} onChange={handleTypeChange} /> Income</label>
                         </div>
                     </div>
                     <div className={styles.inputGroup}>
@@ -121,7 +122,6 @@ function AddTransactionPage() {
                     </div>
                     <div className={styles.inputGroup}><label htmlFor="date">Date</label><input type="date" id="date" name="date" value={date} onChange={onChange} required /></div>
 
-                    {/* NEW: "Paid with Cash?" checkbox */}
                     <div className={styles.inputGroup}>
                         <label className={styles.checkboxLabel}>
                             <input

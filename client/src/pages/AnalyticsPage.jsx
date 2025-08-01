@@ -30,28 +30,30 @@ function AnalyticsPage() {
                 const token = localStorage.getItem('token');
                 const config = { headers: { 'Authorization': `Bearer ${token}` } };
 
-                // Fetch user to check for family_id
-                const userRes = await axios.get('http://localhost:5000/api/auth/me', config);
+                // Fetch user to check for familyId
+                const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
                 setUser(userRes.data);
 
                 // Determine date range for the API call
                 const today = new Date();
-                let startDate, endDate = today.toISOString().split('T')[0];
-
+                let params = {};
                 if (dateRange === 'this_month') {
-                    startDate = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().split('T')[0];
+                    const start = new Date(today.getFullYear(), today.getMonth(), 1).toISOString();
+                    const end = today.toISOString();
+                    params = { startDate: start, endDate: end };
                 } else if (dateRange === 'last_month') {
-                    startDate = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString().split('T')[0];
-                    endDate = new Date(today.getFullYear(), today.getMonth(), 0).toISOString().split('T')[0];
+                    const start = new Date(today.getFullYear(), today.getMonth() - 1, 1).toISOString();
+                    const end = new Date(today.getFullYear(), today.getMonth(), 0).toISOString();
+                    params = { startDate: start, endDate: end };
                 }
-                // For 'all_time', we don't send dates, so the API returns everything
 
-                const endpoint = view === 'family' && userRes.data.family_id
+                // Update the endpoint to use GET and the new route names
+                const endpoint = view === 'family' && userRes.data.familyId
                     ? 'http://localhost:5000/api/transactions/family'
-                    : 'http://localhost:5000/api/transactions/list';
+                    : 'http://localhost:5000/api/transactions/personal';
 
-                const body = (startDate && endDate) ? { startDate, endDate } : {};
-                const transactionsRes = await axios.post(endpoint, body, config);
+                // Pass date range as query parameters
+                const transactionsRes = await axios.get(endpoint, { ...config, params });
 
                 setTransactions(transactionsRes.data);
             } catch (error) {
@@ -65,14 +67,13 @@ function AnalyticsPage() {
 
     // --- Data Processing with useMemo for performance ---
     const analyticsData = useMemo(() => {
-        // Corrected: Provide an initial value of 0 to the reduce functions
         const totalIncome = transactions
             .filter(t => t.amount > 0)
-            .reduce((sum, t) => sum + parseFloat(t.amount), 0); // <-- Added , 0 here
+            .reduce((sum, t) => sum + parseFloat(t.amount), 0);
 
         const totalExpenses = transactions
             .filter(t => t.amount < 0)
-            .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0); // <-- Added , 0 here
+            .reduce((sum, t) => sum + Math.abs(parseFloat(t.amount)), 0);
 
         const spendingByCategory = transactions
             .filter(t => t.amount < 0)
@@ -80,7 +81,7 @@ function AnalyticsPage() {
                 const category = t.category || 'Uncategorized';
                 acc[category] = (acc[category] || 0) + Math.abs(parseFloat(t.amount));
                 return acc;
-            }, {}); // This one already correctly uses an initial value of {}
+            }, {});
 
         const pieChartData = Object.entries(spendingByCategory)
             .map(([name, value]) => ({ name, value }))
@@ -107,7 +108,7 @@ function AnalyticsPage() {
             </header>
 
             <div className={styles.controls}>
-                {user?.family_id && (
+                {user?.familyId && ( // Check for familyId
                     <div className={styles.viewToggle}>
                         <button onClick={() => setView('personal')} className={view === 'personal' ? styles.active : ''}>Personal</button>
                         <button onClick={() => setView('family')} className={view === 'family' ? styles.active : ''}>Family</button>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
-import styles from '../styles/Dashboard.module.css'; // Using your provided CSS module
+import styles from '../styles/Dashboard.module.css';
 import { FiPlus, FiTrendingUp, FiTrendingDown, FiDollarSign } from 'react-icons/fi';
 import { motion } from 'framer-motion';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -81,14 +81,17 @@ function Dashboard() {
             try {
                 const token = localStorage.getItem('token');
                 const config = { headers: { 'Authorization': `Bearer ${token}` } };
-                const userRes = await axios.get('http://localhost:5000/api/auth/me', config);
+
+                // Call the new verify-token endpoint to get user data
+                const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
                 setUser(userRes.data);
 
-                const endpoint = view === 'family' && userRes.data.family_id
+                // Update the endpoint to use GET and the new route names
+                const endpoint = view === 'family' && userRes.data.familyId // Check for familyId
                     ? 'http://localhost:5000/api/transactions/family'
-                    : 'http://localhost:5000/api/transactions/list';
+                    : 'http://localhost:5000/api/transactions/personal';
 
-                const transactionsRes = await axios.post(endpoint, {}, config);
+                const transactionsRes = await axios.get(endpoint, config);
                 setTransactions(transactionsRes.data);
             } catch (err) {
                 setError('Failed to load dashboard data. Please try refreshing.');
@@ -111,7 +114,7 @@ function Dashboard() {
                 </button>
             </header>
 
-            {user?.family_id && (
+            {user?.familyId && ( // Check for familyId
                 <div className={styles.viewToggleContainer}>
                     <div className={styles.viewToggle}>
                         <button
@@ -154,7 +157,9 @@ function Dashboard() {
                                         <td className={styles.td}>
                                             <div className={styles.tdDescription}>{t.description}</div>
                                             <div className={styles.tdCategory}>
-                                                {view === 'family' ? `${t.category} (by ${t.entered_by})` : t.category}
+                                                {/* The entered_by field is no longer returned in the backend. */}
+                                                {/* This line is updated to reflect that change. */}
+                                                {t.category}
                                             </div>
                                         </td>
                                         <td className={`${styles.td} ${t.amount > 0 ? styles.amountCredit : styles.amountDebit}`}>

@@ -22,7 +22,8 @@ const Navbar = ({ isSidebarOpen, toggleSidebar }) => {
             if (token) {
                 try {
                     const config = { headers: { 'Authorization': `Bearer ${token}` } };
-                    const res = await axios.get('http://localhost:5000/api/auth/me', config);
+                    // Use the new verify-token endpoint
+                    const res = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
                     setUser(res.data);
                 } catch (error) {
                     console.error('Failed to fetch user', error);
@@ -42,7 +43,7 @@ const Navbar = ({ isSidebarOpen, toggleSidebar }) => {
             if (token) {
                 try {
                     const config = { headers: { 'Authorization': `Bearer ${token}` } };
-                    // Assume a new endpoint for fetching alerts
+                    // The alerts route is now a GET request
                     const res = await axios.get('http://localhost:5000/api/alerts', config);
                     setNotifications(res.data);
                 } catch (error) {
@@ -79,9 +80,8 @@ const Navbar = ({ isSidebarOpen, toggleSidebar }) => {
     const handleSearch = (e) => {
         e.preventDefault();
         if (searchQuery.trim()) {
-            // Navigate to the transactions page with the search term as a URL parameter
             navigate(`/transactions?search=${searchQuery}`);
-            setSearchQuery(''); // Clear search query after navigation
+            setSearchQuery('');
         }
     };
 

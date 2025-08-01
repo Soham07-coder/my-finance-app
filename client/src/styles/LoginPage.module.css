@@ -109,3 +109,32 @@
 .link:hover {
     text-decoration: underline;
 }
+
+.separator {
+    display: flex;
+    align-items: center;
+    text-align: center;
+    color: #9ca3af;
+    margin: 1.5rem 0;
+}
+
+.separator::before,
+.separator::after {
+    content: '';
+    flex: 1;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.separator:not(:empty)::before {
+    margin-right: .5em;
+}
+
+.separator:not(:empty)::after {
+    margin-left: .5em;
+}
+
+.googleButtonContainer {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}

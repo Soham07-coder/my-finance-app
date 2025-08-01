@@ -7,6 +7,8 @@ const cors = require('cors');
 const authRoutes = require('./routes/auth');
 const transactionRoutes = require('./routes/transactions');
 const familyRoutes = require('./routes/families');
+const categoriesRoutes = require('./routes/categories');
+const alertsRoutes = require('./routes/alerts');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -20,6 +22,11 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/families', familyRoutes);
+
+// --- CORRECTED LINE ---
+// The path should start with a forward slash '/'
+app.use('/api/categories', categoriesRoutes);
+app.use('/api/alerts', alertsRoutes);
 
 // --- Start the server ---
 app.listen(port, () => {

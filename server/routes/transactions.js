@@ -52,11 +52,12 @@ router.post('/family', async (req, res) => {
 // POST /api/transactions (Updated)
 // Adds a new transaction (can be personal OR family)
 router.post('/', async (req, res) => {
-    const { description, amount, category, transaction_type, date, family_id } = req.body;
+    const { description, amount, category, transaction_type, date, family_id, isCashPayment } = req.body;
     try {
+        // You would need a new column 'is_cash' in your transactions table
         const newTransaction = await pool.query(
-            "INSERT INTO transactions (user_id, description, amount, category, transaction_type, date, family_id) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *",
-            [req.user.id, description, amount, category, transaction_type, date, family_id]
+            "INSERT INTO transactions (user_id, description, amount, category, transaction_type, date, family_id, is_cash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
+            [req.user.id, description, amount, category, transaction_type, date, family_id, isCashPayment]
         );
         res.status(201).json(newTransaction.rows[0]);
     } catch (err) {
@@ -64,6 +65,7 @@ router.post('/', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+
 
 // PUT /api/transactions/:id
 router.put('/:id', async (req, res) => {

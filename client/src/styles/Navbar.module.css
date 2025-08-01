@@ -165,3 +165,147 @@
     background-color: #f9fafb;
     color: #1d4ed8;
 }
+
+.globalActions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.searchForm {
+    display: flex;
+    align-items: center;
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--border-radius);
+    padding: 0.5rem;
+}
+
+.searchInput {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--color-text);
+    padding: 0 0.5rem;
+    width: 200px;
+    transition: width 0.3s ease;
+}
+
+.searchInput:focus {
+    width: 250px;
+}
+
+.searchButton {
+    background: none;
+    border: none;
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    padding: 0 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.addButton {
+    background-color: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.25rem;
+    font-weight: 600;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: background-color 0.2s ease;
+}
+
+.addButton:hover {
+    background-color: var(--color-primary-dark);
+}
+
+.userSection {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.alertsMenu {
+    position: relative;
+}
+
+.alertsButton {
+    background: var(--color-bg-secondary);
+    border: none;
+    color: var(--color-text);
+    font-size: 1.25rem;
+    padding: 0.5rem;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+}
+
+.notificationBadge {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: var(--color-danger);
+    color: white;
+    border-radius: 50%;
+    padding: 0.2rem 0.4rem;
+    font-size: 0.7rem;
+    font-weight: bold;
+}
+
+.alertsDropdown {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    width: 300px;
+    background-color: var(--color-bg-secondary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    z-index: 1000;
+    margin-top: 0.5rem;
+    padding: 1rem;
+}
+
+.alertsTitle {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--color-border);
+    padding-bottom: 0.5rem;
+}
+
+.alertItem {
+    padding: 0.75rem 0;
+    border-bottom: 1px solid var(--color-border);
+}
+
+.alertItem:last-child {
+    border-bottom: none;
+}
+
+.alertDate {
+    font-size: 0.8rem;
+    color: var(--color-text-secondary);
+}
+
+.noAlerts {
+    color: var(--color-text-secondary);
+    text-align: center;
+    padding: 1rem 0;
+}
+
+/* Responsive styles */
+@media (max-width: 768px) {
+    .globalActions {
+        display: none;
+    }
+
+    .addButtonText {
+        display: none;
+    }
+}

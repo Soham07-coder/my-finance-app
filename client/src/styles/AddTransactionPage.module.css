@@ -43,7 +43,10 @@
 }
 
 .inputGroup {
+    display: flex;
+    flex-direction: column;
     margin-bottom: 1.5rem;
+    /* Add some space below each group */
 }
 
 .inputGroup label {
@@ -154,4 +157,19 @@
     background-color: #ffffff;
     color: var(--primary-blue);
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* NEW: Styles for the checkbox group */
+.checkboxLabel {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1rem;
+    color: var(--color-text);
+}
+
+.checkboxLabel input[type="checkbox"] {
+    width: 1.25rem;
+    height: 1.25rem;
+    accent-color: var(--color-primary);
 }

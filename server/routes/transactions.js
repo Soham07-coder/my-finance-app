@@ -1,65 +1,89 @@
 // server/routes/transactions.js
 const express = require('express');
 const router = express.Router();
-const pool = require('../db'); // Corrected import
 const authMiddleware = require('../middleware/authMiddleware');
+const admin = require('firebase-admin');
+const db = admin.firestore();
 
 // This protects all routes in this file
 router.use(authMiddleware);
 
-// POST /api/transactions/list (Updated)
-// Gets ONLY PERSONAL transactions for the logged-in user
-router.post('/list', async (req, res) => {
+// @route   GET /api/transactions/personal
+// @desc    Gets ONLY PERSONAL transactions for the logged-in user
+router.get('/personal', async (req, res) => {
     try {
-        const transactions = await pool.query(
-            "SELECT * FROM transactions WHERE user_id = $1 AND family_id IS NULL ORDER BY date DESC",
-            [req.user.id]
-        );
-        res.json(transactions.rows);
+        const userId = req.user.uid;
+        const transactionsRef = db.collection('transactions');
+        const transactionsSnapshot = await transactionsRef
+            .where('userId', '==', userId)
+            .where('familyId', '==', null)
+            .orderBy('date', 'desc')
+            .get();
+
+        const transactions = transactionsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        res.json(transactions);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// NEW ROUTE: POST /api/transactions/family
-// Gets ALL transactions for the user's FAMILY
-router.post('/family', async (req, res) => {
+// @route   GET /api/transactions/family
+// @desc    Gets ALL transactions for the user's FAMILY
+router.get('/family', async (req, res) => {
     try {
-        const userFamily = await pool.query("SELECT family_id FROM users WHERE id = $1", [req.user.id]);
-        const familyId = userFamily.rows[0]?.family_id;
+        const userId = req.user.uid;
+        const userDoc = await db.collection('users').doc(userId).get();
+        const familyId = userDoc.data()?.familyId;
 
         if (!familyId) {
-            return res.json([]); // Return empty if user is not in a family
+            return res.json([]);
         }
 
-        // Fetch all transactions linked to the family, joining with users to see who entered it
-        const transactions = await pool.query(
-            `SELECT t.*, u.username AS entered_by
-             FROM transactions t
-             JOIN users u ON t.user_id = u.id
-             WHERE t.family_id = $1
-             ORDER BY t.date DESC`,
-            [familyId]
-        );
-        res.json(transactions.rows);
+        const transactionsRef = db.collection('transactions');
+        const transactionsSnapshot = await transactionsRef
+            .where('familyId', '==', familyId)
+            .orderBy('date', 'desc')
+            .get();
+
+        const transactions = transactionsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+
+        res.json(transactions);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// POST /api/transactions (Updated)
-// Adds a new transaction (can be personal OR family)
+// @route   POST /api/transactions
+// @desc    Adds a new transaction (can be personal OR family)
 router.post('/', async (req, res) => {
-    const { description, amount, category, transaction_type, date, family_id, isCashPayment } = req.body;
+    const { description, amount, category, type, date, familyId, isCashPayment, location } = req.body;
+    const userId = req.user.uid;
+
     try {
-        // You would need a new column 'is_cash' in your transactions table
-        const newTransaction = await pool.query(
-            "INSERT INTO transactions (user_id, description, amount, category, transaction_type, date, family_id, is_cash) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *",
-            [req.user.id, description, amount, category, transaction_type, date, family_id, isCashPayment]
-        );
-        res.status(201).json(newTransaction.rows[0]);
+        const newTransaction = {
+            userId,
+            description,
+            amount,
+            category,
+            type, // 'expense' or 'income'
+            date: new Date(date),
+            familyId: familyId || null,
+            isCashPayment: isCashPayment || false,
+            location: location || null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        };
+
+        const transactionRef = await db.collection('transactions').add(newTransaction);
+        res.status(201).json({ id: transactionRef.id, ...newTransaction });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -67,37 +91,52 @@ router.post('/', async (req, res) => {
 });
 
 
-// PUT /api/transactions/:id
+// @route   PUT /api/transactions/:id
 router.put('/:id', async (req, res) => {
     const { id } = req.params;
-    const { description, amount, category, transaction_type, date } = req.body;
-    try {
-        const updatedTransaction = await pool.query(
-            "UPDATE transactions SET description = $1, amount = $2, category = $3, transaction_type = $4, date = $5 WHERE id = $6 AND user_id = $7 RETURNING *",
-            [description, amount, category, transaction_type, date, id, req.user.id]
-        );
+    const userId = req.user.uid;
 
-        if (updatedTransaction.rows.length === 0) {
+    const { description, amount, category, type, date, location, isCashPayment } = req.body;
+    try {
+        const transactionRef = db.collection('transactions').doc(id);
+        const transactionDoc = await transactionRef.get();
+
+        if (!transactionDoc.exists || transactionDoc.data().userId !== userId) {
             return res.status(404).json({ msg: 'Transaction not found or user not authorized.' });
         }
-        res.json(updatedTransaction.rows[0]);
+
+        await transactionRef.update({
+            description,
+            amount,
+            category,
+            type,
+            date: new Date(date),
+            isCashPayment,
+            location
+        });
+
+        const updatedDoc = await transactionRef.get();
+        res.json({ id: updatedDoc.id, ...updatedDoc.data() });
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
 });
 
-// DELETE /api/transactions/:id
+// @route   DELETE /api/transactions/:id
 router.delete('/:id', async (req, res) => {
     const { id } = req.params;
+    const userId = req.user.uid;
+
     try {
-        const deleteOp = await pool.query(
-            "DELETE FROM transactions WHERE id = $1 AND user_id = $2 RETURNING *",
-            [id, req.user.id]
-        );
-        if (deleteOp.rows.length === 0) {
+        const transactionRef = db.collection('transactions').doc(id);
+        const transactionDoc = await transactionRef.get();
+
+        if (!transactionDoc.exists || transactionDoc.data().userId !== userId) {
             return res.status(404).json({ msg: 'Transaction not found or user not authorized.' });
         }
+
+        await transactionRef.delete();
         res.json({ msg: 'Transaction removed' });
     } catch (err) {
         console.error(err.message);

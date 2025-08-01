@@ -11,7 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
-
+family-finance-app-61a64-firebase-adminsdk-fbsvc-4c0ad4c737.json
+client_secret_2_522844790189-ki5cfia88rcg068vfuhmqfofq8kjt08c.apps.googleusercontent.com.json
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

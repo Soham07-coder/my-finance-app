@@ -1,8 +1,9 @@
 // server/routes/categories.js
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
+const admin = require('firebase-admin');
+const db = admin.firestore();
 
 router.use(authMiddleware);
 
@@ -10,20 +11,25 @@ router.use(authMiddleware);
 // @desc    Get all relevant categories for a user (default + custom)
 router.get('/', async (req, res) => {
     try {
-        const userId = req.user.id;
-        const userResult = await pool.query('SELECT family_id FROM users WHERE id = $1', [userId]);
-        const familyId = userResult.rows[0]?.family_id;
+        const userId = req.user.uid;
+        const userDoc = await db.collection('users').doc(userId).get();
+        const familyId = userDoc.data()?.familyId;
 
-        // Fetch default categories, user-specific categories, and family-specific categories
-        const categories = await pool.query(
-            `SELECT * FROM categories 
-             WHERE is_default = true 
-                OR user_id = $1 
-                OR (family_id = $2 AND $2 IS NOT NULL)
-             ORDER BY type, name`,
-            [userId, familyId]
-        );
-        res.json(categories.rows);
+        const categoriesRef = db.collection('categories');
+        const defaultCategoriesSnapshot = await categoriesRef.where('isDefault', '==', true).get();
+        const userCategoriesSnapshot = await categoriesRef.where('userId', '==', userId).get();
+
+        let familyCategoriesSnapshot = { docs: [] };
+        if (familyId) {
+            familyCategoriesSnapshot = await categoriesRef.where('familyId', '==', familyId).get();
+        }
+
+        const defaultCategories = defaultCategoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const userCategories = userCategoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        const familyCategories = familyCategoriesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        const allCategories = [...defaultCategories, ...userCategories, ...familyCategories];
+        res.json(allCategories);
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
@@ -33,8 +39,8 @@ router.get('/', async (req, res) => {
 // @route   POST /api/categories
 // @desc    Create a new custom category
 router.post('/', async (req, res) => {
-    const { name, type, isFamilyCategory } = req.body; // type is 'expense' or 'income'
-    const userId = req.user.id;
+    const { name, type, isFamilyCategory } = req.body;
+    const userId = req.user.uid;
 
     if (!name || !type) {
         return res.status(400).json({ msg: 'Name and type are required.' });
@@ -43,23 +49,25 @@ router.post('/', async (req, res) => {
     try {
         let familyId = null;
         if (isFamilyCategory) {
-            const userResult = await pool.query('SELECT family_id FROM users WHERE id = $1', [userId]);
-            familyId = userResult.rows[0]?.family_id;
+            const userDoc = await db.collection('users').doc(userId).get();
+            familyId = userDoc.data()?.familyId;
             if (!familyId) {
                 return res.status(400).json({ msg: 'You are not in a family.' });
             }
         }
 
-        const newCategory = await pool.query(
-            'INSERT INTO categories (name, type, user_id, family_id) VALUES ($1, $2, $3, $4) RETURNING *',
-            [name, type, familyId ? null : userId, familyId]
-        );
+        const newCategory = {
+            name,
+            type,
+            userId: isFamilyCategory ? null : userId,
+            familyId: familyId || null,
+            isDefault: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        };
 
-        res.status(201).json(newCategory.rows[0]);
+        const categoryRef = await db.collection('categories').add(newCategory);
+        res.status(201).json({ id: categoryRef.id, ...newCategory });
     } catch (err) {
-        if (err.code === '23505') { // Unique constraint violation
-            return res.status(400).json({ msg: 'A category with this name already exists.' });
-        }
         console.error(err.message);
         res.status(500).send('Server Error');
     }
@@ -70,31 +78,29 @@ router.post('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const categoryId = req.params.id;
-        const userId = req.user.id;
+        const userId = req.user.uid;
 
-        const categoryResult = await pool.query('SELECT * FROM categories WHERE id = $1', [categoryId]);
-        if (categoryResult.rows.length === 0) {
+        const categoryRef = db.collection('categories').doc(categoryId);
+        const categoryDoc = await categoryRef.get();
+
+        if (!categoryDoc.exists) {
             return res.status(404).json({ msg: 'Category not found.' });
         }
 
-        const category = categoryResult.rows[0];
-        // Users cannot delete default categories
-        if (category.is_default) {
+        const category = categoryDoc.data();
+        if (category.isDefault) {
             return res.status(403).json({ msg: 'Cannot delete a default category.' });
         }
-        // Check if user has permission to delete
-        if (category.user_id !== userId) {
+        if (category.userId !== userId) {
             return res.status(403).json({ msg: 'Not authorized to delete this category.' });
         }
 
-        await pool.query('DELETE FROM categories WHERE id = $1', [categoryId]);
+        await categoryRef.delete();
         res.json({ msg: 'Category removed.' });
-
     } catch (err) {
         console.error(err.message);
         res.status(500).send('Server Error');
     }
 });
-
 
 module.exports = router;

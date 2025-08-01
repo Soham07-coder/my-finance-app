@@ -2,6 +2,15 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const admin = require('firebase-admin');
+
+// Initialize Firebase Admin SDK
+// Make sure you've downloaded the serviceAccountKey.json file and placed it in this directory
+const serviceAccount = require('./family-finance-app-61a64-firebase-adminsdk-fbsvc-4c0ad4c737.json');
+
+admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount),
+});
 
 // --- Route Files ---
 const authRoutes = require('./routes/auth');
@@ -18,13 +27,9 @@ app.use(cors());
 app.use(express.json());
 
 // --- Use Routes ---
-// Connects the URL prefixes to the route files
 app.use('/api/auth', authRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/families', familyRoutes);
-
-// --- CORRECTED LINE ---
-// The path should start with a forward slash '/'
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/alerts', alertsRoutes);
 

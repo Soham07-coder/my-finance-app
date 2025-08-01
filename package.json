@@ -1,6 +1,9 @@
 {
   "dependencies": {
+    "firebase-admin": "^13.4.0",
+    "graphql": "^15.10.1",
     "nanoid": "^5.1.5",
+    "postgraphile": "^4.14.1",
     "recharts": "^3.1.0"
   },
   "devDependencies": {

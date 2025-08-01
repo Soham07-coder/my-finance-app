@@ -1,8 +1,9 @@
 // server/routes/alerts.js
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
 const authMiddleware = require('../middleware/authMiddleware');
+const admin = require('firebase-admin');
+const db = admin.firestore();
 
 router.use(authMiddleware);
 
@@ -10,39 +11,42 @@ router.use(authMiddleware);
 // @desc    Get all active alerts for the user
 router.get('/', async (req, res) => {
     try {
-        const userId = req.user.id;
-        const alerts = [];
+        const userId = req.user.uid; // Firebase UID from authMiddleware
+        const alertsRef = db.collection('alerts');
 
-        // --- 1. Cash Payment Alert Logic (Conceptual) ---
-        // This is a placeholder. The actual logic depends on how the mobile app
-        // sends location data and cash transaction flags to the server.
-        const cashAlert = await pool.query(
-            `SELECT * FROM user_alerts WHERE user_id = $1 AND type = 'cash_payment' AND is_resolved = false`,
-            [userId]
-        );
-        if (cashAlert.rows.length > 0) {
-            alerts.push({
-                type: 'cash_payment',
-                message: 'You have an unrecorded cash payment. Please categorize it.',
-                date: cashAlert.rows[0].created_at,
-                id: cashAlert.rows[0].id
-            });
-        }
+        // --- 1. Cash Payment Alert Logic ---
+        // This will now query the 'alerts' collection in Firestore
+        const cashAlertsSnapshot = await alertsRef
+            .where('userId', '==', userId)
+            .where('type', '==', 'cash_payment')
+            .where('isResolved', '==', false)
+            .orderBy('createdAt', 'desc') // Assuming you have a 'createdAt' field
+            .get();
+
+        const alerts = cashAlertsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            type: doc.data().type,
+            message: doc.data().message,
+            date: doc.data().createdAt?.toDate(), // Convert Firestore Timestamp to Date object
+        }));
 
         // --- 2. Spending Anomaly Alert (Conceptual) ---
-        // This is a placeholder for a more complex analytics-based alert.
-        const anomalyAlert = await pool.query(
-            `SELECT * FROM user_alerts WHERE user_id = $1 AND type = 'spending_anomaly' AND is_resolved = false`,
-            [userId]
-        );
-        if (anomalyAlert.rows.length > 0) {
+        // This is still a placeholder, but now it queries Firestore
+        const anomalyAlertsSnapshot = await alertsRef
+            .where('userId', '==', userId)
+            .where('type', '==', 'spending_anomaly')
+            .where('isResolved', '==', false)
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        anomalyAlertsSnapshot.docs.forEach(doc => {
             alerts.push({
-                type: 'spending_anomaly',
-                message: `Your spending on a category is unusually high this month.`,
-                date: anomalyAlert.rows[0].created_at,
-                id: anomalyAlert.rows[0].id
+                id: doc.id,
+                type: doc.data().type,
+                message: doc.data().message,
+                date: doc.data().createdAt?.toDate(),
             });
-        }
+        });
 
         res.json(alerts);
     } catch (err) {

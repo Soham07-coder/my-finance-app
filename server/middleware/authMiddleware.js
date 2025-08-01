@@ -1,20 +1,19 @@
-const jwt = require('jsonwebtoken');
+// server/middleware/authMiddleware.js
+const admin = require('firebase-admin');
 
-module.exports = function (req, res, next) {
-    // Get token from header
-    const token = req.header('Authorization')?.split(' ')[1]; // Expects "Bearer [token]"
+module.exports = async function (req, res, next) {
+    const idToken = req.header('Authorization')?.split(' ')[1];
 
-    // Check if not token
-    if (!token) {
+    if (!idToken) {
         return res.status(401).json({ msg: 'No token, authorization denied' });
     }
 
-    // Verify token
     try {
-        const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        req.user = decoded.user; // Add user from payload to the request object
-        next(); // Move to the next middleware or route handler
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
+        req.user = decodedToken; // Attaching the decoded Firebase token payload to the request
+        next();
     } catch (err) {
+        console.error('Firebase auth error:', err);
         res.status(401).json({ msg: 'Token is not valid' });
     }
 };

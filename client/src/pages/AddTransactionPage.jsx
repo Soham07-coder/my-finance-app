@@ -8,7 +8,7 @@ import { FiArrowLeft } from 'react-icons/fi';
 function AddTransactionPage() {
     const [formData, setFormData] = useState({
         description: '', amount: '', category: '',
-        type: 'expense', // Updated from transaction_type to type
+        type: 'expense',
         date: new Date().toISOString().split('T')[0],
     });
     const [isFamilyExpense, setIsFamilyExpense] = useState(false);
@@ -34,10 +34,12 @@ function AddTransactionPage() {
                 const categoriesRes = await axios.get('http://localhost:5000/api/categories', config);
                 setCategories(categoriesRes.data);
 
-                // The property is now isDefault, not is_default
+                // Find and set the default expense category for initial state
                 const defaultExpenseCat = categoriesRes.data.find(c => c.type === 'expense' && c.isDefault);
                 if (defaultExpenseCat) {
                     setFormData(prev => ({ ...prev, category: defaultExpenseCat.name }));
+                } else {
+                    setFormData(prev => ({ ...prev, category: '' }));
                 }
             } catch (error) {
                 console.error("Could not fetch initial data", error);
@@ -51,11 +53,15 @@ function AddTransactionPage() {
 
     const handleTypeChange = e => {
         const newType = e.target.value;
-        const firstCatOfType = categories.find(c => c.type === newType);
+        // Filter categories based on the new type
+        const newAvailableCategories = categories.filter(c => c.type === newType);
+        // Set the new category to the first one in the filtered list, or an empty string
+        const newCategory = newAvailableCategories.length > 0 ? newAvailableCategories[0].name : '';
+
         setFormData({
             ...formData,
-            type: newType, // Updated from transaction_type to type
-            category: firstCatOfType ? firstCatOfType.name : ''
+            type: newType,
+            category: newCategory
         });
     };
 
@@ -84,7 +90,8 @@ function AddTransactionPage() {
         }
     };
 
-    const availableCategories = categories.filter(cat => cat.type === type); // Updated from transaction_type to type
+    // Filter available categories based on the current transaction type
+    const availableCategories = categories.filter(cat => cat.type === type);
 
     return (
         <div className={styles.pageContainer}>

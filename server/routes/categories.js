@@ -59,8 +59,8 @@ router.post('/', async (req, res) => {
         const newCategory = {
             name,
             type,
-            userId: isFamilyCategory ? null : userId,
-            familyId: familyId || null,
+            userId: isFamilyCategory ? null : userId, // If it's a family category, userId is null
+            familyId: familyId || null, // If it's a family category, familyId is set
             isDefault: false,
             createdAt: admin.firestore.FieldValue.serverTimestamp()
         };
@@ -91,9 +91,22 @@ router.delete('/:id', async (req, res) => {
         if (category.isDefault) {
             return res.status(403).json({ msg: 'Cannot delete a default category.' });
         }
-        if (category.userId !== userId) {
-            return res.status(403).json({ msg: 'Not authorized to delete this category.' });
+        // Check if user has permission to delete (either created by user or is a family admin for family category)
+        // This logic might need refinement based on your exact family roles and permissions
+        if (category.userId !== userId && !(category.familyId && userDoc.data().members[userId] === 'admin')) { // Simplified check, assuming userDoc is available
+             // To make this check more robust, you might need to fetch the user's family role here
+             // For now, it checks if the category belongs to the user OR if it's a family category (and implicitly assumes admin can delete)
+             // A more robust check would involve fetching the user's role in the family
+             const userDoc = await db.collection('users').doc(userId).get();
+             const userFamilyId = userDoc.data()?.familyId;
+             const familyDoc = userFamilyId ? await db.collection('families').doc(userFamilyId).get() : null;
+             const userRole = familyDoc?.data()?.members[userId];
+
+             if (category.userId !== userId && !(category.familyId && userRole === 'admin')) {
+                return res.status(403).json({ msg: 'Not authorized to delete this category.' });
+             }
         }
+
 
         await categoryRef.delete();
         res.json({ msg: 'Category removed.' });

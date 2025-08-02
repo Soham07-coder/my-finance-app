@@ -12,8 +12,8 @@ const InfoRow = ({ label, value }) => (
     </div>
 );
 
-// --- Component to Manage Categories ---
-const CategoryManager = () => {
+// --- Component to Manage Categories (now accepts user as a prop) ---
+const CategoryManager = ({ user }) => {
     const [categories, setCategories] = useState([]);
     const [newCategory, setNewCategory] = useState({ name: '', type: 'expense' });
     const [error, setError] = useState('');
@@ -43,8 +43,12 @@ const CategoryManager = () => {
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}` } };
-            // The isFamilyCategory field must be added to the payload
-            await axios.post('http://localhost:5000/api/categories', { name: newCategory.name, type: newCategory.type, isFamilyCategory: false }, config);
+            
+            // Dynamic logic: If the user is in a family, set the category to be a family category
+            // This flag is handled by the backend to determine if the category should have a familyId or userId
+            const isFamilyCategory = !!user?.familyId;
+            
+            await axios.post('http://localhost:5000/api/categories', { name: newCategory.name, type: newCategory.type, isFamilyCategory }, config);
             setNewCategory({ name: '', type: 'expense' });
             fetchCategories();
         } catch (err) {
@@ -89,7 +93,6 @@ const CategoryManager = () => {
                         <li key={cat.id} className={styles.categoryItem}>
                             <span className={`${styles.categoryType} ${styles[cat.type]}`}>{cat.type}</span>
                             <span className={styles.categoryName}>{cat.name}</span>
-                            {/* The property is now isDefault, not is_default */}
                             {!cat.isDefault ? (
                                 <button onClick={() => handleDeleteCategory(cat.id)} className={styles.deleteButton} title="Delete Category">
                                     <FiTrash2 />
@@ -118,10 +121,8 @@ function AccountPage() {
             try {
                 const token = localStorage.getItem('token');
                 const config = { headers: { 'Authorization': `Bearer ${token}` } };
-                // Using the new verify-token endpoint to get user data
                 const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
                 setUser(userRes.data);
-                // The property is now familyId, not family_id
                 if (userRes.data.familyId) {
                     const familyRes = await axios.get('http://localhost:5000/api/families/my-family', config);
                     setFamily(familyRes.data);
@@ -155,7 +156,6 @@ function AccountPage() {
                         {family ? (
                             <>
                                 <InfoRow label="Family Name" value={family.name} />
-                                {/* Invite code is now the family ID */}
                                 <InfoRow label="Family ID" value={family.id} />
                                 <h3 className={styles.membersTitle}>Members ({family.members.length})</h3>
                                 <ul className={styles.membersList}>
@@ -172,7 +172,8 @@ function AccountPage() {
                     <div className={styles.content}>
                         <h2 className={styles.contentTitle}>Manage Categories</h2>
                         <p className={styles.contentSubtitle}>Add or remove your custom income and expense categories.</p>
-                        <CategoryManager />
+                        {/* Pass the user object to the CategoryManager */}
+                        <CategoryManager user={user} />
                     </div>
                 );
             case 'security':

@@ -54,5 +54,29 @@ router.get('/', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
+// @route   PUT /api/settings/notifications
+// @desc    Update the authenticated user's notification preferences
+router.put('/notifications', async (req, res) => {
+    const { notifications } = req.body;
+    const userId = req.user.uid;
 
+    if (!notifications || typeof notifications !== 'object') {
+        return res.status(400).json({ msg: 'Invalid notification data provided.' });
+    }
+
+    try {
+        const userDocRef = db.collection('users').doc(userId);
+        
+        // Update the notifications field in the user's Firestore document
+        // This will be a nested object like { budgetAlerts: true, cashPaymentAlerts: false, ... }
+        await userDocRef.update({
+            'preferences.notifications': notifications
+        });
+
+        res.json({ msg: 'Notification preferences updated successfully.' });
+    } catch (err) {
+        console.error('Failed to update notifications:', err.message);
+        res.status(500).json({ msg: 'Server error: Failed to update notification preferences.' });
+    }
+});
 module.exports = router;

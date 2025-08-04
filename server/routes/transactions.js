@@ -20,10 +20,15 @@ router.get('/personal', async (req, res) => {
             .orderBy('date', 'desc')
             .get();
 
-        const transactions = transactionsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+        const transactions = transactionsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Fix: Convert Firestore Timestamp to a reliable ISO date string
+                date: data.date ? data.date.toDate().toISOString() : null
+            };
+        });
 
         res.json(transactions);
     } catch (err) {
@@ -50,10 +55,15 @@ router.get('/family', async (req, res) => {
             .orderBy('date', 'desc')
             .get();
 
-        const transactions = transactionsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+        const transactions = transactionsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                // Fix: Convert Firestore Timestamp to a reliable ISO date string
+                date: data.date ? data.date.toDate().toISOString() : null
+            };
+        });
 
         res.json(transactions);
     } catch (err) {

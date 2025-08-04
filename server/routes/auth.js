@@ -3,6 +3,7 @@ const express = require('express');
 const router = express.Router();
 const admin = require('firebase-admin'); // Import Firebase Admin SDK
 const db = admin.firestore(); // Get a Firestore instance
+const authMiddleware = require('../middleware/authMiddleware'); // Import authMiddleware
 
 // @route   POST /api/auth/verify-token
 // @desc    Verify Firebase ID token and fetch/create user in Firestore
@@ -53,6 +54,30 @@ router.post('/verify-token', async (req, res) => {
         console.error('Firebase ID token verification failed:', err.message);
         // Return a 401 Unauthorized status for invalid tokens
         res.status(401).json({ msg: 'Unauthorized: Invalid or expired token.' });
+    }
+});
+
+
+// @route   PUT /api/settings/password
+// @desc    Update the authenticated user's password
+router.put('/password', authMiddleware, async (req, res) => { // <-- authMiddleware added here
+    const { newPassword } = req.body;
+    const userId = req.user.uid; // This line now expects req.user to be populated by middleware
+
+    if (!newPassword || newPassword.length < 6) {
+        return res.status(400).json({ msg: 'Password must be at least 6 characters long.' });
+    }
+
+    try {
+        // Use Firebase Admin SDK to update the user's password
+        await admin.auth().updateUser(userId, {
+            password: newPassword
+        });
+
+        res.json({ msg: 'Password updated successfully.' });
+    } catch (err) {
+        console.error('Failed to update password:', err.message);
+        res.status(500).json({ msg: 'Server error: Failed to update password.' });
     }
 });
 

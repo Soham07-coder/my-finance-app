@@ -129,4 +129,68 @@ router.post('/join', async (req, res) => {
     }
 });
 
+
+// @route   POST /api/families/leave
+// @desc    Remove the authenticated user from their current family.
+router.post('/leave', async (req, res) => {
+    const userId = req.user.uid; // Firebase UID from authMiddleware
+
+    try {
+        // Get the user's current family ID
+        const userDoc = await db.collection('users').doc(userId).get();
+        const familyId = userDoc.data()?.familyId;
+
+        if (!familyId) {
+            return res.status(400).json({ msg: 'You are not currently in a family.' });
+        }
+
+        // Use a Firestore transaction to atomically update both documents
+        await db.runTransaction(async (transaction) => {
+            const familyRef = db.collection('families').doc(familyId);
+            const userRef = db.collection('users').doc(userId);
+
+            const familyDoc = await transaction.get(familyRef);
+            if (!familyDoc.exists) {
+                // Data inconsistency: User has a familyId but family doesn't exist
+                throw new Error('Family not found.');
+            }
+
+            const familyData = familyDoc.data();
+            const members = familyData.members;
+            
+            // Check if the user is the only member or an admin.
+            const memberCount = Object.keys(members).length;
+            const userRole = members[userId];
+
+            if (userRole === 'admin' && memberCount > 1) {
+                // If the user is an admin and there are other members,
+                // you might want to handle this differently (e.g., reassign admin role or disallow leaving).
+                // For this example, we'll return an error.
+                throw new Error('Family admin cannot leave a family with other members.');
+            }
+
+            // Remove the user from the family's members map
+            delete members[userId];
+            transaction.update(familyRef, { members: members });
+
+            // If the user was the last member, delete the family document
+            if (memberCount === 1) {
+                transaction.delete(familyRef);
+            }
+
+            // Remove the familyId from the user's document
+            transaction.update(userRef, { familyId: null });
+        });
+
+        res.json({ msg: 'Successfully left the family.' });
+    } catch (err) {
+        console.error('Error leaving family:', err.message);
+        // Handle specific business logic errors
+        if (err.message === 'Family admin cannot leave a family with other members.') {
+            return res.status(403).json({ msg: err.message });
+        }
+        res.status(500).send('Server Error');
+    }
+});
+
 module.exports = router;

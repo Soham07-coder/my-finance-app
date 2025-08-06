@@ -184,6 +184,179 @@
     background-color: #f3f4f6;
 }
 
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem; /* Increased space between label and input */
+}
+
+.label {
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: #4b5563;
+}
+
+.input {
+    width: 100%;
+    padding: 0.75rem 1rem; /* Increased padding for better height */
+    border: 1px solid #e5e7eb;
+    border-radius: 0.5rem;
+    font-size: 1rem;
+    color: #374151;
+    background-color: #ffffff;
+}
+
+/* New CSS to align inputs in a grid */
+.formGrid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1.5rem; /* Gap between grid items */
+}
+
+@media (min-width: 768px) {
+    .formGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.input:disabled {
+    background-color: #f9fafb;
+    cursor: not-allowed;
+}
+
+.inputWithIcon {
+    position: relative;
+}
+
+.inputWithIcon svg {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: #9ca3af;
+}
+
+.inputWithIcon input {
+    padding-left: 2.5rem;
+}
+
+.inputWithButton {
+    display: flex;
+    gap: 0.5rem;
+}
+.profileHeader {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+@media (min-width: 768px) {
+    .profileHeader {
+        flex-direction: row;
+        align-items: center;
+        gap: 1.5rem;
+    }
+}
+
+.profileAvatar {
+    position: relative;
+    width: 6rem;
+    height: 6rem;
+    border-radius: 50%;
+    background-color: #f3f4f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.avatarFallback {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: #9ca3af;
+}
+
+/* New style for the camera icon button */
+.avatarCameraButton {
+    position: absolute;
+    bottom: 0.5rem;
+    right: 0.5rem;
+    background-color: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 50%;
+    padding: 0.25rem;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: all 0.2s ease;
+}
+
+.avatarCameraButton:hover {
+    background-color: #f3f4f6;
+}
+
+.profileInfo {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.nameAndRole {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.profileName {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin: 0;
+}
+
+/* New style for the Family Admin badge */
+.roleBadge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    background-color: #eef2ff;
+    color: #1d4ed8;
+}
+
+.crownIcon {
+    height: 0.75rem;
+    width: 0.75rem;
+}
+
+.profileEmail, .memberSince {
+    font-size: 1rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.editButton {
+    background-color: transparent;
+    border: 1px solid #e5e7eb;
+    padding: 0.5rem 1.25rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease-in-out;
+}
+
+.editButton:hover {
+    background-color: #f3f4f6;
+}
+
 .formGrid {
     display: grid;
     grid-template-columns: 1fr;
@@ -203,7 +376,7 @@
 }
 
 .label {
-    font-size: 0.875rem;
+    font-size: 0.87rem;
     font-weight: 500;
     color: #4b5563;
 }
@@ -246,8 +419,22 @@
     gap: 0.5rem;
 }
 
+.descriptionText {
+    font-size: 0.75rem;
+    color: #6b7280;
+    margin: 0;
+    margin-top: 0.25rem;
+}
+
 /* Family Tab Styles */
-.memberList {
+.membersTitle {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: #1f2937;
+    margin-bottom: 1rem;
+}
+
+.membersList {
     list-style: none;
     padding: 0;
     margin: 0;
@@ -277,36 +464,83 @@
 }
 
 .memberAvatar {
-    width: 2rem;
-    height: 2rem;
+    width: 2.5rem;
+    height: 2.5rem;
     border-radius: 50%;
     background-color: #f3f4f6;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    font-weight: 600;
+    color: #6b7280;
+    font-size: 1rem;
 }
 
-.memberDetails p {
+.memberInfo {
+    display: flex;
+    flex-direction: column;
+}
+
+.memberName {
     font-weight: 500;
     color: #1f2937;
     font-size: 0.875rem;
     margin: 0;
 }
 
-.memberDetails p.email {
+.memberEmail {
     font-weight: normal;
     color: #6b7280;
     font-size: 0.75rem;
+    margin: 0;
+}
+
+.memberStatus {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
 }
 
 .memberRoleBadge {
-    display: inline-block;
+    display: inline-flex; /* Use inline-flex for alignment with icon */
+    align-items: center;
+    gap: 0.25rem;
     padding: 0.25rem 0.5rem;
     border-radius: 9999px;
     font-size: 0.75rem;
     font-weight: 600;
     background-color: #eef2ff;
     color: #1d4ed8;
+}
+
+.memberStatus.pending {
+    background-color: #fffbeb;
+    color: #b45309;
+}
+
+.memberStatus.active {
+    background-color: #ecfdf5;
+    color: #047857;
+}
+
+.joinFamilySection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 1rem;
+    text-align: center;
+    padding: 2rem 0;
+}
+
+.actionButtons {
+    display: flex;
+    gap: 1rem;
 }
 
 /* Security Tab Styles */
@@ -418,9 +652,9 @@ input:checked + .slider:before {
     border-radius: 0.75rem;
     box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
     padding: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
+    display: grid;
+    gap: 2rem;
+    grid-template-columns: 1fr;
 }
 
 .dangerZoneHeader {
@@ -436,7 +670,7 @@ input:checked + .slider:before {
 }
 
 .dangerZoneContent {
-    display: flex;
+    display: grid;
     flex-direction: column;
     gap: 1.5rem;
 }

@@ -10,7 +10,7 @@ const authMiddleware = require('../middleware/authMiddleware'); // Import authMi
 // This route will be called by your React frontend after a user signs in
 // using Firebase client-side SDK (e.g., Google Sign-In, email/password).
 router.post('/verify-token', async (req, res) => {
-    const { idToken } = req.body;
+    const { idToken, name: clientName, phone: clientPhone } = req.body; // Destructure name and phone from req.body
 
     // Basic validation for the presence of the ID token
     if (!idToken) {
@@ -28,25 +28,26 @@ router.post('/verify-token', async (req, res) => {
 
         if (!userDoc.exists) {
             // If the user document does not exist, create a new one in Firestore.
-            // This handles cases where a user signs up via Firebase Auth but
-            // their corresponding document in Firestore hasn't been created yet.
-            const { name, email, picture } = decodedToken; // Extract useful info from decoded token
+            const { name: decodedName, email, picture } = decodedToken; // Extract useful info from decoded token
+
             const newUser = {
-                username: name || email.split('@')[0], // Use name or part of email as username
+                username: clientName || decodedName || email.split('@')[0], // Prefer clientName, then decodedName, then part of email
                 email: email,
+                phone: clientPhone || null, // Store phone if provided from client
                 profilePicture: picture || null, // Store profile picture URL if available
                 familyId: null, // Initialize familyId as null
                 createdAt: admin.firestore.FieldValue.serverTimestamp(), // Firestore timestamp
                 lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
             };
             await userDocRef.set(newUser); // Create the new user document
-            return res.status(201).json({ id: uid, ...newUser }); // Return the newly created user
+            return res.status(201).json({ id: uid, user: newUser }); // Return the newly created user
         } else {
             // If the user document exists, update their last login time
             await userDocRef.update({
                 lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
             });
-            return res.json({ id: uid, ...userDoc.data() }); // Return existing user data
+            // Return existing user data, ensuring it's nested under 'user' for consistency
+            return res.json({ id: uid, user: userDoc.data() });
         }
 
     } catch (err) {

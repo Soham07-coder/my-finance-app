@@ -1,16 +1,117 @@
 <!doctype html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Project</title>
-</head>
-
-<body>
-  <div id="root"></div>
-  <script type="module" src="/src/main.jsx"></script>
-</body>
-
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="FamilyFin - Comprehensive family finance management with Indian currency support, collaborative spending features, and detailed analytics." />
+    <meta name="keywords" content="family finance, expense tracker, budget, Indian rupee, financial management" />
+    <meta name="author" content="FamilyFin Team" />
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="FamilyFin - Family Finance Manager" />
+    <meta property="og:description" content="Comprehensive family finance management with collaborative spending features" />
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="FamilyFin - Family Finance Manager" />
+    <meta property="twitter:description" content="Comprehensive family finance management with collaborative spending features" />
+    
+    <!-- Preconnect to Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    
+    <!-- Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <title>FamilyFin - Family Finance Manager</title>
+    
+    <style>
+      /* Loading screen styles */
+      #loading {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        z-index: 9999;
+        transition: opacity 0.3s ease-out;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid #e2e8f0;
+        border-top: 3px solid #3b82f6;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-bottom: 16px;
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      .loading-text {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        color: #64748b;
+        font-weight: 500;
+      }
+      
+      /* Hide loading screen when React loads */
+      .loaded #loading {
+        opacity: 0;
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Loading Screen -->
+    <div id="loading">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Loading FamilyFin...</div>
+    </div>
+    
+    <!-- React Root -->
+    <div id="root"></div>
+    
+    <!-- Favicon SVG -->
+    <script>
+      // Create favicon dynamically
+      const favicon = `
+        <svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+          <rect width="32" height="32" rx="6" fill="%233b82f6"/>
+          <path d="M8 12h16M8 16h16M8 20h12" stroke="white" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="22" cy="10" r="3" fill="%2310b981"/>
+          <text x="22" y="12" font-family="Arial" font-size="8" fill="white" text-anchor="middle">₹</text>
+        </svg>
+      `;
+      
+      const blob = new Blob([favicon], { type: 'image/svg+xml' });
+      const url = URL.createObjectURL(blob);
+      const link = document.querySelector('link[rel="icon"]');
+      if (link) link.href = url;
+      
+      // Hide loading screen when page loads
+      window.addEventListener('load', () => {
+        setTimeout(() => {
+          document.body.classList.add('loaded');
+          setTimeout(() => {
+            const loading = document.getElementById('loading');
+            if (loading) loading.remove();
+          }, 300);
+        }, 500);
+      });
+    </script>
+    
+    <script type="module" src="/src/main.jsx"></script>
+  </body>
 </html>

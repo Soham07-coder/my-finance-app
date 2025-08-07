@@ -21,12 +21,12 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     categoryId: '',
     categoryName: '',
     paymentMethod: '',
-    isPersonal: viewMode === 'personal',
+    isPersonal: viewMode === 'personal',  // defaults based on viewMode
     notes: '',
     location: '',
-    date: new Date()
+    date: new Date(),
   });
-  
+
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [notificationSent, setNotificationSent] = useState(false);
@@ -35,6 +35,11 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
   const navigate = useNavigate();
 
   const userHomeLocation = 'Dombivli, Maharashtra';
+
+  // Sync isPersonal when viewMode updates (important for async user/viewMode changes)
+  useEffect(() => {
+    setFormData((prev) => ({ ...prev, isPersonal: viewMode === 'personal' }));
+  }, [viewMode]);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -45,16 +50,15 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
       }
       try {
         const config = { headers: { 'Authorization': `Bearer ${token}` } };
-        
         const categoriesRes = await axios.get('http://localhost:5000/api/categories', config);
         setCategories(categoriesRes.data);
-        
+
         const defaultExpenseCat = categoriesRes.data.find(c => c.type === 'expense');
         if (defaultExpenseCat) {
-          setFormData(prev => ({ 
-            ...prev, 
+          setFormData(prev => ({
+            ...prev,
             categoryId: defaultExpenseCat.id,
-            categoryName: defaultExpenseCat.name
+            categoryName: defaultExpenseCat.name,
           }));
         }
       } catch (err) {
@@ -65,27 +69,26 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     fetchData();
   }, []);
 
+  // Detect location if cash payment and geolocation available
   useEffect(() => {
     if (formData.paymentMethod === 'cash' && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-
           const mockGeocodeUrl = `https://api.example.com/geocode?latlng=${latitude},${longitude}`;
-          
+
           try {
-              const res = await axios.get(mockGeocodeUrl);
-              const currentLocation = res.data.results[0]?.formatted_address || 'Unknown Location';
+            const res = await axios.get(mockGeocodeUrl);
+            const currentLocation = res.data.results[0]?.formatted_address || 'Unknown Location';
+            setFormData(prev => ({ ...prev, location: currentLocation }));
 
-              setFormData(prev => ({ ...prev, location: currentLocation }));
-
-              if (currentLocation !== userHomeLocation && !notificationSent) {
-                  console.log('User is away from home. Sending a cash payment alert.');
-                  setNotificationSent(true);
-              }
+            if (currentLocation !== userHomeLocation && !notificationSent) {
+              console.log('User is away from home. Sending a cash payment alert.');
+              setNotificationSent(true);
+            }
           } catch (error) {
-              console.error("Geocoding failed:", error);
-              setFormData(prev => ({ ...prev, location: 'Location detection failed' }));
+            console.error("Geocoding failed:", error);
+            setFormData(prev => ({ ...prev, location: 'Location detection failed' }));
           }
         },
         (error) => {
@@ -118,32 +121,32 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     if (!validateForm()) return;
 
     setIsLoading(true);
-    
     try {
       const token = localStorage.getItem('token');
-      const config = { headers: { 'Authorization': `Bearer ${token}` } };
-      
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+
+      const userIdToSend = user?.uid || user?.id || null;
+      const familyIdToSend = formData.isPersonal ? null : (user?.familyId || null);
+
       const transactionData = {
         ...formData,
         amount: parseFloat(formData.amount),
         category: formData.categoryName,
-        userId: user?.id,
-        familyId: formData.isPersonal ? null : user?.familyId, // ← this line is all that matters!
+        userId: userIdToSend,
+        familyId: familyIdToSend,
         date: formData.date.toISOString(),
-        isPersonal: !!formData.isPersonal, // helpful to store for filtering/stats
+        isPersonal: !!formData.isPersonal,
       };
-      
+
+      console.log('Posting transactionData:', transactionData);
+
       await axios.post('http://localhost:5000/api/transactions', transactionData, config);
-      
-      console.log('Transaction saved successfully:', transactionData);
-      
       onNavigate('transactions');
     } catch (err) {
-      console.error('Error saving transaction:', err);
+      console.error(err);
       setError(err.response?.data?.msg || 'Failed to save transaction. Please try again.');
     } finally {
       setIsLoading(false);
@@ -156,27 +159,25 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
       setFormData(prev => ({
         ...prev,
         categoryId: value,
-        categoryName: selectedCategory ? selectedCategory.name : ''
+        categoryName: selectedCategory ? selectedCategory.name : '',
       }));
       if (errors.categoryId) setErrors(prev => ({ ...prev, categoryId: '' }));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
-      if (errors[field]) {
-        setErrors(prev => ({ ...prev, [field]: '' }));
-      }
+      if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
-  
+
   const handleTypeChange = (value) => {
     const newAvailableCategories = categories.filter(c => c.type === value);
     const newCategory = newAvailableCategories.length > 0 ? newAvailableCategories[0].id : '';
     const newCategoryName = newAvailableCategories.length > 0 ? newAvailableCategories[0].name : '';
 
-    setFormData(prev => ({ 
-        ...prev, 
-        type: value,
-        categoryId: newCategory,
-        categoryName: newCategoryName
+    setFormData(prev => ({
+      ...prev,
+      type: value,
+      categoryId: newCategory,
+      categoryName: newCategoryName,
     }));
   };
 
@@ -206,7 +207,13 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
           </p>
         </div>
       </div>
-      {error && <div className="bg-destructive/10 text-destructive border border-destructive/30 p-3 rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>}
+
+      {error && (
+        <div className="bg-destructive/10 text-destructive border border-destructive/30 p-3 rounded-lg flex items-center gap-2">
+          <AlertCircle className="w-4 h-4" />
+          {error}
+        </div>
+      )}
 
       <div className="max-w-2xl">
         <Card className="shadow-sm hover:shadow-lg transition-all duration-300">
@@ -223,7 +230,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
               </div>
             </div>
           </CardHeader>
-          
+
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Transaction Type */}
@@ -250,7 +257,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                       </div>
                     </div>
                   </button>
-                  
+
                   <button
                     type="button"
                     onClick={() => handleTypeChange('income')}
@@ -364,12 +371,12 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
               {/* Category */}
               <div className="space-y-2">
                 <Label style={{ fontSize: '12px', fontWeight: '500' }}>Category</Label>
-                <Select 
-                  value={formData.categoryId} 
+                <Select
+                  value={formData.categoryId}
                   onValueChange={(value) => handleInputChange('category', value)}
                   required
                 >
-                  <SelectTrigger 
+                  <SelectTrigger
                     className={cn(
                       "h-12",
                       errors.categoryId && 'border-destructive focus-visible:ring-destructive/20'
@@ -400,12 +407,12 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
               {/* Payment Method */}
               <div className="space-y-2">
                 <Label style={{ fontSize: '12px', fontWeight: '500' }}>Payment Method</Label>
-                <Select 
-                  value={formData.paymentMethod} 
+                <Select
+                  value={formData.paymentMethod}
                   onValueChange={(value) => handleInputChange('paymentMethod', value)}
                   required
                 >
-                  <SelectTrigger 
+                  <SelectTrigger
                     className={cn(
                       "h-12",
                       errors.paymentMethod && 'border-destructive focus-visible:ring-destructive/20'
@@ -477,7 +484,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                 />
               </div>
 
-              {/* Personal/Family Toggle (only in family view) */}
+              {/* Personal/Family Toggle (only if user has family) */}
               {user?.familyId && (
                 <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-xl">
                   <input
@@ -488,8 +495,8 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                     className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
                   />
                   <div>
-                    <Label 
-                      htmlFor="personal" 
+                    <Label
+                      htmlFor="personal"
                       className="cursor-pointer"
                       style={{ fontSize: '12px', fontWeight: '500' }}
                     >
@@ -504,12 +511,12 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
 
               {/* Submit Buttons */}
               <div className="flex gap-3 pt-4">
-                <Button 
-                  type="submit" 
+                <Button
+                  type="submit"
                   disabled={isLoading}
                   className={cn(
                     "gap-2 h-12 px-6 bg-gradient-to-r",
-                    formData.type === 'income' 
+                    formData.type === 'income'
                       ? "from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
                       : "from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600",
                     "text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
@@ -523,7 +530,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                   )}
                   {isLoading ? 'Saving...' : `Save ${formData.type === 'income' ? 'Income' : 'Expense'}`}
                 </Button>
-                
+
                 <Button
                   type="button"
                   variant="outline"

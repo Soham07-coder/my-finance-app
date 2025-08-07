@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Search, Filter, Plus, ArrowUpRight, ArrowDownRight, Calendar, SlidersHorizontal, MapPin, Clock, Download, Upload, AlertCircle } from 'lucide-react';
+import { Search, Filter, Plus, ArrowUpRight, ArrowDownRight, SlidersHorizontal, MapPin, Clock, Download, Upload, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
 import { Input } from './ui/input.jsx';
@@ -17,7 +17,7 @@ const paymentMethods = [
   { id: 'auto_debit', name: 'Auto Debit', description: 'Recurring payments', icon: '🔄' },
 ];
 
-export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
+export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
   const [transactions, setTransactions] = useState([]);
   const [fetchedCategories, setFetchedCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -45,27 +45,22 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
       try {
         const config = { headers: { 'Authorization': `Bearer ${token}` } };
         
-        // Fetch categories first
         const categoriesRes = await axios.get('http://localhost:5000/api/categories', config);
         setFetchedCategories(categoriesRes.data);
-
-        // Determine which transaction endpoint to call
-        const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
-        const userFamilyId = userRes.data.user?.familyId;
-
-        let endpoint = userFamilyId ? '/api/transactions/family' : '/api/transactions/personal';
         
+        // Fetch ALL transactions from the combined endpoint
+        const endpoint = '/api/transactions/all';
         const transactionsRes = await axios.get(`http://localhost:5000${endpoint}`, config);
         
-        // Map fetched transactions to include category icon from fetched categories
-        const fetchedTransactions = transactionsRes.data.map(t => {
-          const category = categoriesRes.data.find(c => c.name === t.category);
-          return {
-            ...t,
-            date: t.date ? new Date(t.date) : new Date(),
-            categoryIcon: category?.icon || '❓'
-          };
-        });
+        console.log('Data received from backend:', transactionsRes.data);
+
+        const categoriesMap = new Map(categoriesRes.data.map(c => [c.name, c.icon]));
+        const fetchedTransactions = transactionsRes.data.map(t => ({
+          ...t,
+          date: t.date ? new Date(t.date) : new Date(),
+          categoryIcon: categoriesMap.get(t.category) || '❓',
+          userName: t.userName || 'Unknown Member'
+        }));
         
         setTransactions(fetchedTransactions);
       } catch (err) {
@@ -79,67 +74,71 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
     fetchTransactions();
   }, [viewMode, user]);
 
-  const filteredTransactions = transactions
-    .filter(transaction => {
-      if (viewMode === 'personal' && transaction.familyId) return false;
-      if (viewMode === 'family' && !transaction.familyId) return false;
-
-      const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                            (transaction.category && transaction.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                            (transaction.userName && transaction.userName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-                            (transaction.notes && transaction.notes.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
-      const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
-      const matchesMember = memberFilter === 'all' || transaction.userName === memberFilter;
-      const matchesPayment = paymentFilter === 'all' || transaction.paymentMethod === paymentFilter;
-      
-      let matchesDate = true;
-      if (dateRange !== 'all') {
-        const now = new Date();
-        const transactionDate = transaction.date;
+  const filteredTransactions = useMemo(() => {
+    return transactions
+      .filter(transaction => {
+        const isFamilyTransaction = !!transaction.familyId;
         
-        if (transactionDate) {
-            switch (dateRange) {
-              case 'today':
-                matchesDate = transactionDate.toDateString() === now.toDateString();
-                break;
-              case 'week':
-                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-                matchesDate = transactionDate >= weekAgo;
-                break;
-              case 'month':
-                const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-                matchesDate = transactionDate >= monthAgo;
-                break;
-              case 'year':
-                const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-                matchesDate = transactionDate >= yearAgo;
-                break;
-            }
+        if (viewMode === 'personal' && isFamilyTransaction) {
+            return false;
         }
-      }
-      
-      return matchesSearch && matchesCategory && matchesType && matchesMember && matchesPayment && matchesDate;
-    })
-    .sort((a, b) => {
-      switch (sortBy) {
-        case 'date-desc':
-          if (!a.date || !b.date) return 0;
-          return b.date.getTime() - a.date.getTime();
-        case 'date-asc':
-          if (!a.date || !b.date) return 0;
-          return a.date.getTime() - b.date.getTime();
-        case 'amount-desc':
-          return Math.abs(b.amount) - Math.abs(a.amount);
-        case 'amount-asc':
-          return Math.abs(a.amount) - Math.abs(b.amount);
-        case 'category':
-          return (a.category || '').localeCompare(b.category || '');
-        default:
-          return (b.date?.getTime() || 0) - (a.date?.getTime() || 0);
-      }
-    });
+        if (viewMode === 'family' && !isFamilyTransaction) {
+            return false;
+        }
+
+        const matchesSearch = (transaction.description || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (transaction.category || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (transaction.userName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                              (transaction.notes || '').toLowerCase().includes(searchTerm.toLowerCase());
+        
+        const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
+        const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
+        const matchesMember = memberFilter === 'all' || transaction.userName === memberFilter;
+        const matchesPayment = paymentFilter === 'all' || transaction.paymentMethod === paymentFilter;
+        
+        let matchesDate = true;
+        if (dateRange !== 'all' && transaction.date) {
+          const now = new Date();
+          const transactionDate = transaction.date;
+          
+          switch (dateRange) {
+            case 'today':
+              matchesDate = transactionDate.toDateString() === now.toDateString();
+              break;
+            case 'week':
+              const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+              matchesDate = transactionDate >= weekAgo;
+              break;
+            case 'month':
+              const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+              matchesDate = transactionDate >= monthAgo;
+              break;
+            case 'year':
+              const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+              matchesDate = transactionDate >= yearAgo;
+              break;
+          }
+        }
+        
+        return matchesSearch && matchesCategory && matchesType && matchesMember && matchesPayment && matchesDate;
+      })
+      .sort((a, b) => {
+        switch (sortBy) {
+          case 'date-desc':
+            return (b.date?.getTime() || 0) - (a.date?.getTime() || 0);
+          case 'date-asc':
+            return (a.date?.getTime() || 0) - (b.date?.getTime() || 0);
+          case 'amount-desc':
+            return Math.abs(b.amount) - Math.abs(a.amount);
+          case 'amount-asc':
+            return Math.abs(a.amount) - Math.abs(b.amount);
+          case 'category':
+            return (a.category || '').localeCompare(b.category || '');
+          default:
+            return (b.date?.getTime() || 0) - (a.date?.getTime() || 0);
+        }
+      });
+  }, [transactions, viewMode, searchTerm, categoryFilter, typeFilter, memberFilter, paymentFilter, sortBy, dateRange]);
 
   const totalIncome = filteredTransactions
     .filter(t => t.type === 'income')
@@ -154,6 +153,8 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
     .filter(f => f !== 'all').length;
 
   const uniqueMembers = [...new Set(transactions.map(t => t.userName))].filter(Boolean);
+
+  const paymentMethodsMap = new Map(paymentMethods.map(pm => [pm.id, pm.name]));
 
   if (isLoading) {
     return (
@@ -381,7 +382,7 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
                 <SelectContent>
                   <SelectItem value="all">All Methods</SelectItem>
                   {paymentMethods.map(method => (
-                    <SelectItem key={method} value={method}>{method}</SelectItem>
+                    <SelectItem key={method.id} value={method.id}>{method.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -507,7 +508,7 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
                           {transaction.categoryIcon} {transaction.category}
                         </Badge>
                         <Badge variant="outline" style={{ fontSize: '10px' }} className="px-2 py-0">
-                          {transaction.paymentMethod}
+                          {paymentMethodsMap.get(transaction.paymentMethod) || transaction.paymentMethod}
                         </Badge>
                         {viewMode === 'family' && transaction.userName && (
                           <Badge 

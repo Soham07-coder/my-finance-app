@@ -1,4 +1,5 @@
 // server/routes/transactions.js
+
 const express = require('express');
 const router = express.Router();
 const authMiddleware = require('../middleware/authMiddleware');
@@ -72,6 +73,57 @@ router.get('/family', async (req, res) => {
     }
 });
 
+// @route   GET /api/transactions/all
+// @desc    Gets ALL transactions (personal and family) for the logged-in user
+// ** NEW ROUTE **
+router.get('/all', async (req, res) => {
+    try {
+        const userId = req.user.uid;
+        const userDoc = await db.collection('users').doc(userId).get();
+        const familyId = userDoc.data()?.familyId;
+
+        // Firestore does not support OR queries across different fields in a single query.
+        // We must perform two separate queries and merge the results.
+        const personalTransactionsQuery = db.collection('transactions')
+            .where('userId', '==', userId)
+            .where('familyId', '==', null);
+
+        let allTransactions = [];
+
+        // Fetch personal transactions
+        const personalSnapshot = await personalTransactionsQuery.get();
+        const personal = personalSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data(),
+            date: doc.data().date ? doc.data().date.toDate().toISOString() : null
+        }));
+        allTransactions.push(...personal);
+
+        // Fetch family transactions if a familyId exists
+        if (familyId) {
+            const familyTransactionsQuery = db.collection('transactions')
+                .where('familyId', '==', familyId);
+            
+            const familySnapshot = await familyTransactionsQuery.get();
+            const family = familySnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data(),
+                date: doc.data().date ? doc.data().date.toDate().toISOString() : null
+            }));
+            allTransactions.push(...family);
+        }
+
+        // Sort the combined results by date
+        allTransactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        res.json(allTransactions);
+
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
 // @route   POST /api/transactions
 // @desc    Adds a new transaction (can be personal OR family)
 router.post('/', async (req, res) => {
@@ -99,7 +151,6 @@ router.post('/', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-
 
 // @route   PUT /api/transactions/:id
 router.put('/:id', async (req, res) => {

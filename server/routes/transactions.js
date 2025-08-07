@@ -84,7 +84,7 @@ router.post('/', async (req, res) => {
             description,
             amount,
             category,
-            type, // 'expense' or 'income'
+            type,
             date: new Date(date),
             familyId: familyId || null,
             isCashPayment: isCashPayment || false,

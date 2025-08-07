@@ -18,7 +18,8 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     type: 'expense',
     amount: '',
     description: '',
-    category: '',
+    categoryId: '',
+    categoryName: '',
     paymentMethod: '',
     isPersonal: viewMode === 'personal',
     notes: '',
@@ -33,7 +34,6 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Define a mock home location for demonstration purposes
   const userHomeLocation = 'Dombivli, Maharashtra';
 
   useEffect(() => {
@@ -46,14 +46,16 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
       try {
         const config = { headers: { 'Authorization': `Bearer ${token}` } };
         
-        // Fetch categories from the backend
         const categoriesRes = await axios.get('http://localhost:5000/api/categories', config);
         setCategories(categoriesRes.data);
         
-        // Set default category
         const defaultExpenseCat = categoriesRes.data.find(c => c.type === 'expense');
         if (defaultExpenseCat) {
-          setFormData(prev => ({ ...prev, category: defaultExpenseCat.id }));
+          setFormData(prev => ({ 
+            ...prev, 
+            categoryId: defaultExpenseCat.id,
+            categoryName: defaultExpenseCat.name
+          }));
         }
       } catch (err) {
         console.error("Could not fetch initial data", err);
@@ -73,7 +75,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
           
           try {
               const res = await axios.get(mockGeocodeUrl);
-              const currentLocation = res.data?.formatted_address || 'Unknown Location';
+              const currentLocation = res.data.results[0]?.formatted_address || 'Unknown Location';
 
               setFormData(prev => ({ ...prev, location: currentLocation }));
 
@@ -103,8 +105,8 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     if (!formData.description.trim()) {
       newErrors.description = 'Description is required';
     }
-    if (!formData.category) {
-      newErrors.category = 'Please select a category';
+    if (!formData.categoryId) {
+      newErrors.categoryId = 'Please select a category';
     }
     if (!formData.paymentMethod) {
       newErrors.paymentMethod = 'Please select a payment method';
@@ -124,12 +126,15 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      
       const transactionData = {
         ...formData,
         amount: parseFloat(formData.amount),
+        category: formData.categoryName,
         userId: user?.id,
-        familyId: user?.familyId,
-        date: formData.date.toISOString()
+        familyId: formData.isPersonal ? null : user?.familyId, // ← this line is all that matters!
+        date: formData.date.toISOString(),
+        isPersonal: !!formData.isPersonal, // helpful to store for filtering/stats
       };
       
       await axios.post('http://localhost:5000/api/transactions', transactionData, config);
@@ -146,17 +151,33 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
   };
 
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
+    if (field === 'category') {
+      const selectedCategory = categories.find(cat => cat.id === value);
+      setFormData(prev => ({
+        ...prev,
+        categoryId: value,
+        categoryName: selectedCategory ? selectedCategory.name : ''
+      }));
+      if (errors.categoryId) setErrors(prev => ({ ...prev, categoryId: '' }));
+    } else {
+      setFormData(prev => ({ ...prev, [field]: value }));
+      if (errors[field]) {
+        setErrors(prev => ({ ...prev, [field]: '' }));
+      }
     }
   };
   
   const handleTypeChange = (value) => {
-    handleInputChange('type', value);
     const newAvailableCategories = categories.filter(c => c.type === value);
     const newCategory = newAvailableCategories.length > 0 ? newAvailableCategories[0].id : '';
-    handleInputChange('category', newCategory);
+    const newCategoryName = newAvailableCategories.length > 0 ? newAvailableCategories[0].name : '';
+
+    setFormData(prev => ({ 
+        ...prev, 
+        type: value,
+        categoryId: newCategory,
+        categoryName: newCategoryName
+    }));
   };
 
   const availableCategories = categories.filter(c => c.type === formData.type) || [];
@@ -344,14 +365,14 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
               <div className="space-y-2">
                 <Label style={{ fontSize: '12px', fontWeight: '500' }}>Category</Label>
                 <Select 
-                  value={formData.category} 
+                  value={formData.categoryId} 
                   onValueChange={(value) => handleInputChange('category', value)}
                   required
                 >
                   <SelectTrigger 
                     className={cn(
                       "h-12",
-                      errors.category && 'border-destructive focus-visible:ring-destructive/20'
+                      errors.categoryId && 'border-destructive focus-visible:ring-destructive/20'
                     )}
                     style={{ fontSize: '12px' }}
                   >
@@ -368,10 +389,10 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                     ))}
                   </SelectContent>
                 </Select>
-                {errors.category && (
+                {errors.categoryId && (
                   <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
                     <span className="w-1 h-1 bg-destructive rounded-full"></span>
-                    {errors.category}
+                    {errors.categoryId}
                   </p>
                 )}
               </div>

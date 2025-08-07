@@ -22,11 +22,11 @@ export function formatDate(date) {
   }).format(date);
 }
 
-export function formatDateShort(date) {
-  return new Intl.DateTimeFormat('en-IN', {
-    day: 'numeric',
-    month: 'short',
-  }).format(date);
+export function formatDateShort(dateString) {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export function formatTime(date) {

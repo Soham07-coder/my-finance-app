@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Filter, Plus, ArrowUpRight, ArrowDownRight, Calendar, SlidersHorizontal, MapPin, Clock, Download, Upload } from 'lucide-react';
+import axios from 'axios';
+import { Search, Filter, Plus, ArrowUpRight, ArrowDownRight, Calendar, SlidersHorizontal, MapPin, Clock, Download, Upload, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
 import { Input } from './ui/input.jsx';
@@ -7,137 +8,21 @@ import { Badge } from './ui/badge.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select.jsx';
 import { formatCurrency, formatDate, formatDateShort, cn } from '../lib/utils.js';
 
-const mockTransactions = [
-  {
-    id: '1',
-    amount: -2500,
-    description: 'Weekly Groceries - Big Bazaar',
-    category: 'Food & Dining',
-    categoryIcon: '🛒',
-    paymentMethod: 'UPI',
-    type: 'expense',
-    date: new Date(),
-    userId: '1',
-    userName: 'Priya Sharma',
-    isPersonal: false,
-    location: 'Andheri East, Mumbai',
-    notes: 'Monthly household shopping'
-  },
-  {
-    id: '2',
-    amount: 75000,
-    description: 'Monthly Salary - Tech Solutions Pvt Ltd',
-    category: 'Salary',
-    categoryIcon: '💼',
-    paymentMethod: 'Bank Transfer',
-    type: 'income',
-    date: new Date(Date.now() - 86400000),
-    userId: '1',
-    userName: 'Priya Sharma',
-    isPersonal: true,
-    location: null,
-    notes: 'October 2024 salary'
-  },
-  {
-    id: '3',
-    amount: -1800,
-    description: 'Electricity Bill - MSEB',
-    category: 'Bills & Utilities',
-    categoryIcon: '⚡',
-    paymentMethod: 'UPI',
-    type: 'expense',
-    date: new Date(Date.now() - 172800000),
-    userId: '2',
-    userName: 'Rajesh Sharma',
-    isPersonal: false,
-    location: 'Mumbai, Maharashtra',
-    notes: 'October electricity bill'
-  },
-  {
-    id: '4',
-    amount: -5000,
-    description: 'Family Movie Night - PVR Cinemas',
-    category: 'Entertainment',
-    categoryIcon: '🎬',
-    paymentMethod: 'Credit Card',
-    type: 'expense',
-    date: new Date(Date.now() - 259200000),
-    userId: '1',
-    userName: 'Priya Sharma',
-    isPersonal: false,
-    location: 'Phoenix Mall, Mumbai',
-    notes: 'Weekend family outing'
-  },
-  {
-    id: '5',
-    amount: -3200,
-    description: 'Medical Checkup - Apollo Hospital',
-    category: 'Healthcare',
-    categoryIcon: '🏥',
-    paymentMethod: 'Cash',
-    type: 'expense',
-    date: new Date(Date.now() - 345600000),
-    userId: '3',
-    userName: 'Aarav Sharma',
-    isPersonal: false,
-    location: 'Bandra West, Mumbai',
-    notes: 'Annual health checkup'
-  },
-  {
-    id: '6',
-    amount: 25000,
-    description: 'Freelance Project - Web Development',
-    category: 'Business',
-    categoryIcon: '💻',
-    paymentMethod: 'Bank Transfer',
-    type: 'income',
-    date: new Date(Date.now() - 432000000),
-    userId: '2',
-    userName: 'Rajesh Sharma',
-    isPersonal: true,
-    location: null,
-    notes: 'Client: TechStart Solutions'
-  },
-  {
-    id: '7',
-    amount: -450,
-    description: 'Coffee Meeting - Starbucks',
-    category: 'Food & Dining',
-    categoryIcon: '☕',
-    paymentMethod: 'UPI',
-    type: 'expense',
-    date: new Date(Date.now() - 518400000),
-    userId: '1',
-    userName: 'Priya Sharma',
-    isPersonal: true,
-    location: 'Bandra Kurla Complex, Mumbai',
-    notes: 'Business meeting'
-  },
-  {
-    id: '8',
-    amount: -12000,
-    description: 'Monthly Gym Membership',
-    category: 'Healthcare',
-    categoryIcon: '🏋️',
-    paymentMethod: 'Auto Debit',
-    type: 'expense',
-    date: new Date(Date.now() - 604800000),
-    userId: '1',
-    userName: 'Priya Sharma',
-    isPersonal: true,
-    location: 'Andheri West, Mumbai',
-    notes: 'Annual membership renewal'
-  }
+const paymentMethods = [
+  { id: 'upi', name: 'UPI', description: 'Google Pay, PhonePe, etc.', icon: '📱' },
+  { id: 'cash', name: 'Cash', description: 'Physical currency', icon: '💵' },
+  { id: 'credit_card', name: 'Credit Card', description: 'Visa, Mastercard, etc.', icon: '💳' },
+  { id: 'debit_card', name: 'Debit Card', description: 'Bank card', icon: '💳' },
+  { id: 'bank_transfer', name: 'Bank Transfer', description: 'NEFT, IMPS, RTGS', icon: '🏦' },
+  { id: 'auto_debit', name: 'Auto Debit', description: 'Recurring payments', icon: '🔄' },
 ];
-
-const categories = [
-  'Food & Dining', 'Transportation', 'Bills & Utilities', 'Entertainment', 
-  'Healthcare', 'Shopping', 'Education', 'Salary', 'Business', 'Investment'
-];
-
-const paymentMethods = ['UPI', 'Cash', 'Credit Card', 'Debit Card', 'Bank Transfer', 'Auto Debit'];
 
 export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
+  const [transactions, setTransactions] = useState([]);
+  const [fetchedCategories, setFetchedCategories] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
+
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
@@ -147,46 +32,91 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
   const [dateRange, setDateRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
 
-  const filteredTransactions = mockTransactions
-    .filter(transaction => {
-      // View mode filter
-      if (viewMode === 'personal' && !transaction.isPersonal) return false;
-      if (viewMode === 'family' && transaction.isPersonal) return false;
+  useEffect(() => {
+    const fetchTransactions = async () => {
+      setIsLoading(true);
+      const token = localStorage.getItem('token');
+      if (!token) {
+        setError('Authentication token not found. Please log in.');
+        setIsLoading(false);
+        return;
+      }
 
-      // Search filter
+      try {
+        const config = { headers: { 'Authorization': `Bearer ${token}` } };
+        
+        // Fetch categories first
+        const categoriesRes = await axios.get('http://localhost:5000/api/categories', config);
+        setFetchedCategories(categoriesRes.data);
+
+        // Determine which transaction endpoint to call
+        const userRes = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
+        const userFamilyId = userRes.data.user?.familyId;
+
+        let endpoint = userFamilyId ? '/api/transactions/family' : '/api/transactions/personal';
+        
+        const transactionsRes = await axios.get(`http://localhost:5000${endpoint}`, config);
+        
+        // Map fetched transactions to include category icon from fetched categories
+        const fetchedTransactions = transactionsRes.data.map(t => {
+          const category = categoriesRes.data.find(c => c.name === t.category);
+          return {
+            ...t,
+            date: t.date ? new Date(t.date) : new Date(),
+            categoryIcon: category?.icon || '❓'
+          };
+        });
+        
+        setTransactions(fetchedTransactions);
+      } catch (err) {
+        console.error("Failed to fetch transactions:", err);
+        setError('Failed to load transactions. Please try again.');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchTransactions();
+  }, [viewMode, user]);
+
+  const filteredTransactions = transactions
+    .filter(transaction => {
+      if (viewMode === 'personal' && transaction.familyId) return false;
+      if (viewMode === 'family' && !transaction.familyId) return false;
+
       const matchesSearch = transaction.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.category.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           transaction.userName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                           (transaction.notes && transaction.notes.toLowerCase().includes(searchTerm.toLowerCase()));
+                            (transaction.category && transaction.category.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            (transaction.userName && transaction.userName.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                            (transaction.notes && transaction.notes.toLowerCase().includes(searchTerm.toLowerCase()));
       
-      // Other filters
       const matchesCategory = categoryFilter === 'all' || transaction.category === categoryFilter;
       const matchesType = typeFilter === 'all' || transaction.type === typeFilter;
       const matchesMember = memberFilter === 'all' || transaction.userName === memberFilter;
       const matchesPayment = paymentFilter === 'all' || transaction.paymentMethod === paymentFilter;
       
-      // Date range filter
       let matchesDate = true;
       if (dateRange !== 'all') {
         const now = new Date();
-        const transactionDate = new Date(transaction.date);
+        const transactionDate = transaction.date;
         
-        switch (dateRange) {
-          case 'today':
-            matchesDate = transactionDate.toDateString() === now.toDateString();
-            break;
-          case 'week':
-            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            matchesDate = transactionDate >= weekAgo;
-            break;
-          case 'month':
-            const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
-            matchesDate = transactionDate >= monthAgo;
-            break;
-          case 'year':
-            const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
-            matchesDate = transactionDate >= yearAgo;
-            break;
+        if (transactionDate) {
+            switch (dateRange) {
+              case 'today':
+                matchesDate = transactionDate.toDateString() === now.toDateString();
+                break;
+              case 'week':
+                const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+                matchesDate = transactionDate >= weekAgo;
+                break;
+              case 'month':
+                const monthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+                matchesDate = transactionDate >= monthAgo;
+                break;
+              case 'year':
+                const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+                matchesDate = transactionDate >= yearAgo;
+                break;
+            }
         }
       }
       
@@ -195,17 +125,19 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
     .sort((a, b) => {
       switch (sortBy) {
         case 'date-desc':
+          if (!a.date || !b.date) return 0;
           return b.date.getTime() - a.date.getTime();
         case 'date-asc':
+          if (!a.date || !b.date) return 0;
           return a.date.getTime() - b.date.getTime();
         case 'amount-desc':
           return Math.abs(b.amount) - Math.abs(a.amount);
         case 'amount-asc':
           return Math.abs(a.amount) - Math.abs(b.amount);
         case 'category':
-          return a.category.localeCompare(b.category);
+          return (a.category || '').localeCompare(b.category || '');
         default:
-          return b.date.getTime() - a.date.getTime();
+          return (b.date?.getTime() || 0) - (a.date?.getTime() || 0);
       }
     });
 
@@ -221,7 +153,20 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
   const activeFilters = [categoryFilter, typeFilter, memberFilter, paymentFilter, dateRange]
     .filter(f => f !== 'all').length;
 
-  const uniqueMembers = [...new Set(mockTransactions.map(t => t.userName))];
+  const uniqueMembers = [...new Set(transactions.map(t => t.userName))].filter(Boolean);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="w-12 h-12 border-4 border-t-4 border-blue-500 rounded-full animate-spin"></div>
+        <p className="ml-4 text-muted-foreground">Loading transactions...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return <div className="bg-destructive/10 text-destructive border border-destructive/30 p-4 rounded-lg flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</div>;
+  }
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -423,8 +368,8 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Categories</SelectItem>
-                  {categories.map(category => (
-                    <SelectItem key={category} value={category}>{category}</SelectItem>
+                  {fetchedCategories.map(category => (
+                    <SelectItem key={category.id} value={category.name}>{category.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -564,7 +509,7 @@ export function TransactionsPage({ onNavigate, viewMode = 'family', user }) {
                         <Badge variant="outline" style={{ fontSize: '10px' }} className="px-2 py-0">
                           {transaction.paymentMethod}
                         </Badge>
-                        {viewMode === 'family' && (
+                        {viewMode === 'family' && transaction.userName && (
                           <Badge 
                             variant={transaction.isPersonal ? "secondary" : "outline"} 
                             style={{ fontSize: '10px' }} 

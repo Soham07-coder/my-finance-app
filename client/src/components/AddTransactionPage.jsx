@@ -21,7 +21,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     categoryId: '',
     categoryName: '',
     paymentMethod: '',
-    isPersonal: viewMode === 'personal',  // defaults based on viewMode
+    isPersonal: viewMode === 'personal',
     notes: '',
     location: '',
     date: new Date(),
@@ -29,12 +29,10 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
 
   const [errors, setErrors] = useState({});
   const [isLoading, setIsLoading] = useState(false);
-  const [notificationSent, setNotificationSent] = useState(false);
   const [categories, setCategories] = useState([]);
+  const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-
-  const userHomeLocation = 'Dombivli, Maharashtra';
 
   // Sync isPersonal when viewMode updates (important for async user/viewMode changes)
   useEffect(() => {
@@ -69,36 +67,43 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     fetchData();
   }, []);
 
-  // Detect location if cash payment and geolocation available
+  // UseEffect to handle location detection for cash payments
   useEffect(() => {
     if (formData.paymentMethod === 'cash' && navigator.geolocation) {
+      setLocationLoading(true);
+      setFormData(prev => ({ ...prev, location: "Detecting location..." }));
+      
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          const mockGeocodeUrl = `https://api.example.com/geocode?latlng=${latitude},${longitude}`;
-
+          
           try {
-            const res = await axios.get(mockGeocodeUrl);
-            const currentLocation = res.data.results[0]?.formatted_address || 'Unknown Location';
-            setFormData(prev => ({ ...prev, location: currentLocation }));
+            const token = localStorage.getItem('token');
+            const config = { headers: { 'Authorization': `Bearer ${token}` } };
+            
+            // Send coordinates to the backend to get location
+            const res = await axios.post('http://localhost:5000/api/alerts/get-location', { latitude, longitude }, config);
+            const currentLocation = res.data.location;
 
-            if (currentLocation !== userHomeLocation && !notificationSent) {
-              console.log('User is away from home. Sending a cash payment alert.');
-              setNotificationSent(true);
-            }
+            setFormData(prev => ({ ...prev, location: currentLocation }));
           } catch (error) {
             console.error("Geocoding failed:", error);
             setFormData(prev => ({ ...prev, location: 'Location detection failed' }));
+          } finally {
+            setLocationLoading(false);
           }
         },
         (error) => {
-          console.log('Location access denied');
-        }
+          console.error('Location access denied or unavailable', error);
+          setFormData(prev => ({ ...prev, location: 'Location access denied' }));
+          setLocationLoading(false);
+        },
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
     } else {
       setFormData(prev => ({ ...prev, location: '' }));
     }
-  }, [formData.paymentMethod, notificationSent]);
+  }, [formData.paymentMethod]);
 
   const validateForm = () => {
     const newErrors = {};
@@ -142,6 +147,11 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
       };
 
       console.log('Posting transactionData:', transactionData);
+      
+      // Before saving the transaction, send a final request to check for the location and send an alert
+      if (transactionData.paymentMethod === 'cash') {
+         await axios.post('http://localhost:5000/api/alerts/check-cash-payment', { location: transactionData.location }, config);
+      }
 
       await axios.post('http://localhost:5000/api/transactions', transactionData, config);
       onNavigate('transactions');
@@ -456,10 +466,11 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                     <Input
                       id="location"
                       placeholder="Location will be detected automatically"
-                      value={formData.location}
+                      value={locationLoading ? "Detecting location..." : formData.location}
                       onChange={(e) => handleInputChange('location', e.target.value)}
                       className="pl-9 h-12"
                       style={{ fontSize: '12px' }}
+                      disabled={locationLoading}
                     />
                   </div>
                   <p style={{ fontSize: '10px' }} className="text-muted-foreground flex items-center gap-1">
@@ -468,7 +479,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                   </p>
                 </div>
               )}
-
+              
               {/* Notes */}
               <div className="space-y-2">
                 <Label htmlFor="notes" style={{ fontSize: '12px', fontWeight: '500' }}>

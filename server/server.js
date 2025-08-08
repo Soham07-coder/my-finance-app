@@ -18,6 +18,7 @@ const transactionRoutes = require('./routes/transactions');
 const familyRoutes = require('./routes/families');
 const categoriesRoutes = require('./routes/categories');
 const alertsRoutes = require('./routes/alerts');
+const userRoutes = require('./routes/user');
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -32,6 +33,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/families', familyRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/alerts', alertsRoutes);
+app.use('/api/user',userRoutes);
 
 // --- Start the server ---
 app.listen(port, () => {

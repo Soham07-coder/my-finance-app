@@ -7,7 +7,6 @@ import { Avatar, AvatarFallback } from './ui/avatar.jsx';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu.jsx';
 import { cn } from '../lib/utils.js';
 import axios from 'axios';
-import { motion, AnimatePresence } from 'framer-motion';
 
 const navItems = [
   { 
@@ -58,11 +57,11 @@ export function Layout({ 
   onViewModeChange
 }) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [notifications, setNotifications] = useState([]);
+  const [notifications, setNotifications] = useState([]);
   const [user, setUser] = useState(null);
-  const dropdownRef = useRef(null);
+  const [balance, setBalance] = useState(null); // <-- dynamic stats
+  const [thisMonth, setThisMonth] = useState(null);
   const alertsRef = useRef(null);
-  const [alertsOpen, setAlertsOpen] = useState(false);
 
   // Fetch current user data
   useEffect(() => {
@@ -72,10 +71,6 @@ export function Layout({ 
         try {
           const config = { headers: { 'Authorization': `Bearer ${token}` } };
           const res = await axios.post('http://localhost:5000/api/auth/verify-token', { idToken: token }, config);
-          
-          // Log the response from the backend to check for user data
-          console.log('Backend response for user:', res.data);
-          
           setUser(res.data.user);
         } catch (error) {
           console.error('Failed to fetch user', error);
@@ -87,6 +82,7 @@ export function Layout({ 
     };
     fetchCurrentUser();
   }, []);
+
 
   // Fetch notifications
   useEffect(() => {
@@ -120,25 +116,25 @@ export function Layout({ 
 
   const unreadNotifications = notifications.filter(n => n.unread).length;
 
-  const getPageTitle = (pageId) => {
-    const page = navItems.find(item => item.id === pageId);
-    return page ? page.label : 'Dashboard';
-  };
+  const getPageTitle = (pageId) => {
+    const page = navItems.find(item => item.id === pageId);
+    return page ? page.label : 'Dashboard';
+  };
 
-  const handleProfileMenuAction = (action) => {
-    if (action === 'account') {
-      onNavigate('settings');
-    } else if (action === 'logout') {
-      onLogout();
-    }
-  };
+  const handleProfileMenuAction = (action) => {
+    if (action === 'account') {
+      onNavigate('settings');
+    } else if (action === 'logout') {
+      onLogout();
+    }
+  };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      onNavigate('transactions');
-    }
-  };
+  const handleSearch = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      onNavigate('transactions');
+    }
+  };
 
   // Keyboard shortcuts
   React.useEffect(() => {
@@ -222,27 +218,28 @@ export function Layout({ 
             </Button>
           </div>
 
-          {/* Quick Stats */}
-          <div className="px-4 py-4 border-b border-border bg-muted/20">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg">
-                <div style={{ fontSize: '16px', fontWeight: '700', lineHeight: '1.3' }} className="text-emerald-600 dark:text-emerald-400">
-                  ₹1,25,000
-                </div>
-                <div style={{ fontSize: '10px', lineHeight: '1.5' }} className="text-emerald-700 dark:text-emerald-500">
-                  Balance
-                </div>
-              </div>
-              <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                <div style={{ fontSize: '16px', fontWeight: '700', lineHeight: '1.3' }} className="text-blue-600 dark:text-blue-400">
-                  ₹32,000
-                </div>
-                <div style={{ fontSize: '10px', lineHeight: '1.5' }} className="text-blue-700 dark:text-blue-500">
-                  This Month
-                </div>
-              </div>
-            </div>
-          </div>
+          {/* Quick Stats (dynamic, no mock) */}
+          <div className="px-4 py-4 border-b border-border bg-muted/20">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg">
+                <div className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">
+                  {balance !== null ? `₹${balance.toLocaleString()}` : '--'}
+                </div>
+                <div className="text-xs text-emerald-700 dark:text-emerald-500">
+                  Balance
+                </div>
+              </div>
+              <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                <div className="font-bold text-blue-600 dark:text-blue-400 text-lg">
+                  {thisMonth !== null ? `₹${thisMonth.toLocaleString()}` : '--'}
+                </div>
+                <div className="text-xs text-blue-700 dark:text-blue-500">
+                  This Month
+                </div>
+              </div>
+            </div>
+          </div>
+
 
           {/* Navigation */}
           <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
@@ -292,35 +289,31 @@ export function Layout({ 
             })}
           </nav>
 
-          {/* User Profile */}
-          <div className={cn(
-            "p-4 border-t border-border bg-gradient-to-r from-gray-50 to-gray-100",
-            "dark:from-gray-900/20 dark:to-gray-800/20"
-          )}>
-            <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10 ring-2 ring-border shadow-md">
-                <AvatarFallback 
-                  className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium"
-                  style={{ fontSize: '12px' }}
-                >
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p style={{ fontSize: '12px', fontWeight: '500', lineHeight: '1.3' }} className="text-foreground truncate">
-                  {user?.username || 'Priya Sharma'}
-                </p>
-                <div className="flex items-center gap-2">
-                  <p style={{ fontSize: '10px', lineHeight: '1.5' }} className="text-muted-foreground truncate">
-                    {user?.role || 'Family Admin'}
-                  </p>
-                  <Badge variant="outline" style={{ fontSize: '9px' }} className="px-1.5 py-0">
-                    Pro
-                  </Badge>
-                </div>
-              </div>
-            </div>
-          </div>
+           {/* User Profile */}
+          <div className="p-4 border-t border-border bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20">
+            <div className="flex items-center gap-3">
+              <Avatar className="w-10 h-10 ring-2 ring-border shadow-md">
+                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
+                  {userInitials}
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate">
+                  {user?.username || ''}
+                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-xs text-muted-foreground truncate">
+                    {user?.role || ''}
+                  </p>
+                  {user?.pro && (
+                    <Badge variant="outline" className="px-1.5 py-0 text-[9px]">
+                      Pro
+                    </Badge>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </aside>
 

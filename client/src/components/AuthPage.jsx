@@ -33,7 +33,6 @@ export function AuthPage({ onAuthSuccess }) {
   const [firebaseError, setFirebaseError] = useState('');
   const navigate = useNavigate();
 
-  // Inside your AuthPage component, add:
   const [resetPasswordMessage, setResetPasswordMessage] = useState('');
   const [resetPasswordError, setResetPasswordError] = useState('');
 
@@ -95,18 +94,15 @@ export function AuthPage({ onAuthSuccess }) {
   const handleAuthSuccess = async (user) => {
     try {
       const idToken = await user.getIdToken();
-      // Prepare data to send to backend, including name and phone if it's a registration
       const postData = { idToken };
-      if (!isLogin) { // Only send name and phone if it's a registration (not login)
+      if (!isLogin) {
         postData.name = formData.name;
         postData.phone = formData.phone;
       }
-
-      // Call your backend endpoint to verify the token and get/create user data
       const res = await axios.post('http://localhost:5000/api/auth/verify-token', postData);
-      localStorage.setItem('token', idToken); // Store the Firebase ID token
+      localStorage.setItem('token', idToken);
       console.log("Logged in user data from backend:", res.data);
-      onAuthSuccess(); // Trigger navigation or other success actions in parent
+      onAuthSuccess();
       navigate('/dashboard');
     } catch (backendError) {
       console.error("Backend Verification Error:", backendError);
@@ -116,22 +112,18 @@ export function AuthPage({ onAuthSuccess }) {
     }
   };
 
-  // Handles email/password authentication (both sign-in and sign-up)
   const handleEmailPasswordAuth = async () => {
     setIsLoading(true);
-    setFirebaseError(''); // Clear any previous errors
+    setFirebaseError('');
 
     try {
       let userCredential;
       if (isLogin) {
-        // Sign In with email and password
         userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
         console.log('User signed in successfully with email/password!');
       } else {
-        // Sign Up with email and password
         userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         console.log('User created successfully with email/password!');
-        // The name and phone will be sent in handleAuthSuccess
       }
       await handleAuthSuccess(userCredential.user);
     } catch (error) {
@@ -164,10 +156,9 @@ export function AuthPage({ onAuthSuccess }) {
     }
   };
 
-  // Handles Google Sign-In using Firebase
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    setFirebaseError(''); // Clear any previous errors
+    setFirebaseError('');
 
     try {
       const provider = new GoogleAuthProvider();
@@ -202,324 +193,229 @@ export function AuthPage({ onAuthSuccess }) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
   };
-  // List of features from your personal project
-  const personalFeatures = [
-    'Deep Family-Centric Collaborative Financial Management',
-    'Comprehensive & Culturally Relevant Expense Categorization',
-    'Advanced Historical & Comparative Spending Analytics for Families',
-    'Integrated Trip & Event-Specific Budgeting and Expense Splitting',
-    'Focus on Android User Experience with Tailored Automation',
-    'Real-time cash payment notifications when away from home'
-  ];
 
   return (
     <div className={cn(
       "min-h-screen bg-background flex items-center justify-center text-base leading-relaxed",
       "p-4 sm:p-6 lg:p-8"
     )}>
-      <div className="w-full max-w-6xl grid lg:grid-cols-2 gap-8 lg:gap-12 items-center">
-        {/* Left Side - Branding */}
-        <div className="hidden lg:block space-y-8">
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
+      {/* Right Side - Auth Form (now centered) */}
+      <div className="w-full max-w-md mx-auto">
+        <Card className={cn(
+          "border border-border shadow-sm bg-card",
+          "w-full"
+        )}>
+          <CardHeader className="space-y-1 pb-4 text-center">
+            <div className="flex items-center justify-center lg:hidden mb-4">
               <div className={cn(
-                "w-10 h-10 bg-primary rounded-xl flex items-center justify-center",
-                "shadow-lg"
+                "w-8 h-8 bg-primary rounded-lg flex items-center justify-center",
+                "shadow-md"
               )}>
-                <DollarSign className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="font-semibold text-foreground leading-tight" style={{ fontSize: '20px' }}>FamilyFin</h1>
-                <p className="text-muted-foreground leading-tight" style={{ fontSize: '12px' }}>Family Finance Manager</p>
+                <DollarSign className="w-4 h-4 text-primary-foreground" />
               </div>
             </div>
+            <CardTitle className="font-semibold text-center text-card-foreground" style={{ fontSize: '20px' }}>
+              {isLogin ? 'Welcome back' : 'Create your account'}
+            </CardTitle>
+            <CardDescription className="text-center text-muted-foreground" style={{ fontSize: '12px' }}>
+              {isLogin
+                ? 'Sign in to manage your family finances'
+                : 'Start your journey to financial wellness'
+              }
+            </CardDescription>
+          </CardHeader>
 
-            <div className="space-y-4">
-              <h2 className="font-semibold text-foreground leading-tight" style={{ fontSize: '24px' }}>
-                Take control of your family's financial future
-              </h2>
-              <p className="text-muted-foreground leading-relaxed" style={{ fontSize: '14px' }}>
-                Join thousands of families who trust FamilyFin to manage their finances,
-                track expenses, and achieve their savings goals together.
-              </p>
-            </div>
-          </div>
-
-          <div className="grid gap-4">
-            {personalFeatures.map((feature, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <div className={cn(
-                  "w-5 h-5 bg-primary/10 rounded-full flex items-center justify-center",
-                  "shrink-0"
-                )}>
-                  <div className="w-2 h-2 bg-primary rounded-full" />
-                </div>
-                <span className="text-foreground font-medium" style={{ fontSize: '12px' }}>{feature}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Side - Auth Form */}
-        <div className="w-full max-w-md mx-auto">
-          <Card className={cn(
-            "border border-border shadow-sm bg-card",
-            "w-full"
-          )}>
-            <CardHeader className="space-y-1 pb-4 text-center">
-              <div className="flex items-center justify-center lg:hidden mb-4">
-                <div className={cn(
-                  "w-8 h-8 bg-primary rounded-lg flex items-center justify-center",
-                  "shadow-md"
-                )}>
-                  <DollarSign className="w-4 h-4 text-primary-foreground" />
-                </div>
-              </div>
-              <CardTitle className="font-semibold text-center text-card-foreground" style={{ fontSize: '20px' }}>
-                {isLogin ? 'Welcome back' : 'Create your account'}
-              </CardTitle>
-              <CardDescription className="text-center text-muted-foreground" style={{ fontSize: '12px' }}>
-                {isLogin
-                  ? 'Sign in to manage your family finances'
-                  : 'Start your journey to financial wellness'
-                }
-              </CardDescription>
-            </CardHeader>
-
-            <CardContent className="space-y-4 p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {!isLogin && (
-                  <div className="auth-form-field">
-                    <Label htmlFor="name" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
-                      Full Name
-                    </Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="name"
-                        type="text"
-                        placeholder="Enter your full name"
-                        value={formData.name}
-                        onChange={(e) => handleInputChange('name', e.target.value)}
-                        className={cn(
-                          "pl-9 auth-form-input",
-                          errors.name && 'border-destructive focus-visible:ring-destructive/20'
-                        )}
-                        style={{ fontSize: '12px' }}
-                      />
-                    </div>
-                    {errors.name && (
-                      <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
-                        <AlertCircle className="w-3 h-3" />
-                        <span>{errors.name}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
-
+          <CardContent className="space-y-4 p-6">
+            <form onSubmit={handleSubmit} className="space-y-4">
+              {!isLogin && (
                 <div className="auth-form-field">
-                  <Label htmlFor="email" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
-                    Email Address
+                  <Label htmlFor="name" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
+                    Full Name
                   </Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      id="email"
-                      type="email"
-                      placeholder="Enter your email"
-                      value={formData.email}
-                      onChange={(e) => handleInputChange('email', e.target.value)}
+                      id="name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={formData.name}
+                      onChange={(e) => handleInputChange('name', e.target.value)}
                       className={cn(
                         "pl-9 auth-form-input",
-                        errors.email && 'border-destructive focus-visible:ring-destructive/20'
+                        errors.name && 'border-destructive focus-visible:ring-destructive/20'
                       )}
                       style={{ fontSize: '12px' }}
                     />
                   </div>
-                  {errors.email && (
+                  {errors.name && (
                     <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
                       <AlertCircle className="w-3 h-3" />
-                      <span>{errors.email}</span>
+                      <span>{errors.name}</span>
                     </div>
                   )}
                 </div>
+              )}
 
-                {!isLogin && (
-                  <div className="auth-form-field">
-                    <Label htmlFor="phone" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
-                      Phone Number
-                    </Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="phone"
-                        type="tel"
-                        placeholder="Enter your phone number"
-                        value={formData.phone}
-                        onChange={(e) => handleInputChange('phone', e.target.value)}
-                        className={cn(
-                          "pl-9 auth-form-input",
-                          errors.phone && 'border-destructive focus-visible:ring-destructive/20'
-                        )}
-                        style={{ fontSize: '12px' }}
-                      />
-                    </div>
-                    {errors.phone && (
-                      <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
-                        <AlertCircle className="w-3 h-3" />
-                        <span>{errors.phone}</span>
-                      </div>
+              <div className="auth-form-field">
+                <Label htmlFor="email" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
+                  Email Address
+                </Label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="Enter your email"
+                    value={formData.email}
+                    onChange={(e) => handleInputChange('email', e.target.value)}
+                    className={cn(
+                      "pl-9 auth-form-input",
+                      errors.email && 'border-destructive focus-visible:ring-destructive/20'
                     )}
+                    style={{ fontSize: '12px' }}
+                  />
+                </div>
+                {errors.email && (
+                  <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{errors.email}</span>
                   </div>
                 )}
+              </div>
 
+              {!isLogin && (
                 <div className="auth-form-field">
-                  <Label htmlFor="password" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
-                    Password
+                  <Label htmlFor="phone" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
+                    Phone Number
+                  </Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="Enter your phone number"
+                      value={formData.phone}
+                      onChange={(e) => handleInputChange('phone', e.target.value)}
+                      className={cn(
+                        "pl-9 auth-form-input",
+                        errors.phone && 'border-destructive focus-visible:ring-destructive/20'
+                      )}
+                      style={{ fontSize: '12px' }}
+                    />
+                  </div>
+                  {errors.phone && (
+                    <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
+                      <AlertCircle className="w-3 h-3" />
+                      <span>{errors.phone}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="auth-form-field">
+                <Label htmlFor="password" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
+                  Password
+                </Label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder={isLogin ? 'Enter your password' : 'Create a password'}
+                    value={formData.password}
+                    onChange={(e) => handleInputChange('password', e.target.value)}
+                    className={cn(
+                      "pl-9 pr-9 auth-form-input",
+                      errors.password && 'border-destructive focus-visible:ring-destructive/20'
+                    )}
+                    style={{ fontSize: '12px' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
+                    <AlertCircle className="w-3 h-3" />
+                    <span>{errors.password}</span>
+                  </div>
+                )}
+              </div>
+
+              {!isLogin && (
+                <div className="auth-form-field">
+                  <Label htmlFor="confirmPassword" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
+                    Confirm Password
                   </Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                      id="password"
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder={isLogin ? 'Enter your password' : 'Create a password'}
-                      value={formData.password}
-                      onChange={(e) => handleInputChange('password', e.target.value)}
+                      id="confirmPassword"
+                      type={showConfirmPassword ? 'text' : 'password'}
+                      placeholder="Confirm your password"
+                      value={formData.confirmPassword}
+                      onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
                       className={cn(
                         "pl-9 pr-9 auth-form-input",
-                        errors.password && 'border-destructive focus-visible:ring-destructive/20'
+                        errors.confirmPassword && 'border-destructive focus-visible:ring-destructive/20'
                       )}
                       style={{ fontSize: '12px' }}
                     />
                     <button
                       type="button"
-                      onClick={() => setShowPassword(!showPassword)}
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
-                      {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
                   </div>
-                  {errors.password && (
+                  {errors.confirmPassword && (
                     <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
                       <AlertCircle className="w-3 h-3" />
-                      <span>{errors.password}</span>
+                      <span>{errors.confirmPassword}</span>
                     </div>
                   )}
                 </div>
+              )}
 
-                {!isLogin && (
-                  <div className="auth-form-field">
-                    <Label htmlFor="confirmPassword" className="font-medium text-foreground" style={{ fontSize: '12px' }}>
-                      Confirm Password
+              {isLogin && (
+                <div className="flex flex-col items-start py-2 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="remember"
+                      type="checkbox"
+                      className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
+                    />
+                    <Label htmlFor="remember" className="cursor-pointer text-foreground" style={{ fontSize: '12px' }}>
+                      Remember me
                     </Label>
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                      <Input
-                        id="confirmPassword"
-                        type={showConfirmPassword ? 'text' : 'password'}
-                        placeholder="Confirm your password"
-                        value={formData.confirmPassword}
-                        onChange={(e) => handleInputChange('confirmPassword', e.target.value)}
-                        className={cn(
-                          "pl-9 pr-9 auth-form-input",
-                          errors.confirmPassword && 'border-destructive focus-visible:ring-destructive/20'
-                        )}
-                        style={{ fontSize: '12px' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                      >
-                        {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
-                    </div>
-                    {errors.confirmPassword && (
-                      <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
-                        <AlertCircle className="w-3 h-3" />
-                        <span>{errors.confirmPassword}</span>
-                      </div>
-                    )}
                   </div>
-                )}
-
-                {isLogin && (
-                  <div className="flex flex-col items-start py-2 space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input
-                        id="remember"
-                        type="checkbox"
-                        className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
-                      />
-                      <Label htmlFor="remember" className="cursor-pointer text-foreground" style={{ fontSize: '12px' }}>
-                        Remember me
-                      </Label>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="link"
-                      className="text-primary hover:underline p-0 h-auto text-[12px]"
-                      onClick={handleForgotPassword}
-                    >
-                      Forgot password?
-                    </Button>
-                    {resetPasswordMessage && (
-                      <p className="text-green-600 text-[11px] mt-1">{resetPasswordMessage}</p>
-                    )}
-                    {resetPasswordError && (
-                      <p className="text-destructive text-[11px] mt-1">{resetPasswordError}</p>
-                    )}
-                  </div>
-                )}
-                <Button
-                  type="submit"
-                  disabled={isLoading}
-                  className={cn(
-                    "w-full h-10 font-medium",
-                    "bg-primary text-primary-foreground hover:bg-primary/90",
-                    "disabled:opacity-50 disabled:cursor-not-allowed"
+                  <Button
+                    type="button"
+                    variant="link"
+                    className="text-primary hover:underline p-0 h-auto text-[12px]"
+                    onClick={handleForgotPassword}
+                  >
+                    Forgot password?
+                  </Button>
+                  {resetPasswordMessage && (
+                    <p className="text-green-600 text-[11px] mt-1">{resetPasswordMessage}</p>
                   )}
-                  style={{ fontSize: '12px' }}
-                  size="lg"
-                >
-                  {isLoading ? (
-                    <div className="flex items-center gap-2">
-                      <div className="w-4 h-4 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin" />
-                      <span style={{ fontSize: '12px' }}>{isLogin ? 'Signing in...' : 'Creating account...'}</span>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <span style={{ fontSize: '12px' }}>{isLogin ? 'Sign In' : 'Create Account'}</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </div>
+                  {resetPasswordError && (
+                    <p className="text-destructive text-[11px] mt-1">{resetPasswordError}</p>
                   )}
-                </Button>
-              </form>
-
-              <Separator className="my-4" />
-
-              <div className="text-center">
-                <span className="text-muted-foreground" style={{ fontSize: '12px' }}>
-                  {isLogin ? "Don't have an account?" : "Already have an account?"}
-                </span>
-                <Button
-                  variant="link"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="text-primary hover:underline ml-1 p-0 h-auto"
-                  style={{ fontSize: '12px' }}
-                >
-                  {isLogin ? 'Sign up' : 'Sign in'}
-                </Button>
-              </div>
-
-
-              {/* Google Sign-In Button */}
+                </div>
+              )}
               <Button
-                onClick={handleGoogleSignIn}
+                type="submit"
                 disabled={isLoading}
                 className={cn(
-                  "w-full h-10 font-medium rounded-md",
-                  "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50",
+                  "w-full h-10 font-medium",
+                  "bg-primary text-primary-foreground hover:bg-primary/90",
                   "disabled:opacity-50 disabled:cursor-not-allowed"
                 )}
                 style={{ fontSize: '12px' }}
@@ -527,38 +423,80 @@ export function AuthPage({ onAuthSuccess }) {
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    <span style={{ fontSize: '12px' }}>Signing in with Google...</span>
+                    <div className="w-4 h-4 border-2 border-primary-foreground/20 border-t-primary-foreground rounded-full animate-spin" />
+                    <span style={{ fontSize: '12px' }}>{isLogin ? 'Signing in...' : 'Creating account...'}</span>
                   </div>
                 ) : (
                   <div className="flex items-center gap-2">
-                    {/* Google Icon SVG */}
-                    <svg className="w-4 h-4" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M44.5 20H24V28.5H35.5C34.7 32.2 32.1 35.1 28.5 37.1V42.6C37.1 40.1 43.1 32.2 44.5 20Z" fill="#4285F4" />
-                      <path d="M24 44C30.6 44 36.2 41.8 40.4 37.9L35.5 32.4C32.1 34.6 28.5 36.1 24 36.1C18.6 36.1 13.9 32.6 12.1 27.8L7.1 31.6C9.9 37.3 16.4 44 24 44Z" fill="#34A853" />
-                      <path d="M12.1 27.8C11.6 26.4 11.3 25.1 11.3 24C11.3 22.9 11.6 21.6 12.1 20.2L7.1 16.4C5.3 19.8 4.3 21.9 4.3 24C4.3 26.1 5.3 28.2 7.1 31.6L12.1 27.8Z" fill="#FBBC05" />
-                      <path d="M24 11.9C27.2 11.9 30 13.1 32.2 15.1L37.1 10.2C33.9 7.3 29.3 4 24 4C16.4 4 9.9 10.7 7.1 16.4L12.1 20.2C13.9 15.4 18.6 11.9 24 11.9Z" fill="#EA4335" />
-                    </svg>
-                    <span style={{ fontSize: '12px' }}>Sign in with Google</span>
+                    <span style={{ fontSize: '12px' }}>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                    <ArrowRight className="w-4 h-4" />
                   </div>
                 )}
               </Button>
+            </form>
 
-              {!isLogin && (
-                <p className="text-muted-foreground text-center leading-relaxed" style={{ fontSize: '11px' }}>
-                  By creating an account, you agree to our{' '}
-                  <Button variant="link" className="text-primary hover:underline p-0 h-auto" style={{ fontSize: '11px' }}>
-                    Terms of Service
-                  </Button>
-                  {' '}and{' '}
-                  <Button variant="link" className="text-primary hover:underline p-0 h-auto" style={{ fontSize: '11px' }}>
-                    Privacy Policy
-                  </Button>
-                </p>
+            <Separator className="my-4" />
+
+            <div className="text-center">
+              <span className="text-muted-foreground" style={{ fontSize: '12px' }}>
+                {isLogin ? "Don't have an account?" : "Already have an account?"}
+              </span>
+              <Button
+                variant="link"
+                onClick={() => setIsLogin(!isLogin)}
+                className="text-primary hover:underline ml-1 p-0 h-auto"
+                style={{ fontSize: '12px' }}
+              >
+                {isLogin ? 'Sign up' : 'Sign in'}
+              </Button>
+            </div>
+
+
+            {/* Google Sign-In Button */}
+            <Button
+              onClick={handleGoogleSignIn}
+              disabled={isLoading}
+              className={cn(
+                "w-full h-10 font-medium rounded-md",
+                "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50",
+                "disabled:opacity-50 disabled:cursor-not-allowed"
               )}
-            </CardContent>
-          </Card>
-        </div>
+              style={{ fontSize: '12px' }}
+              size="lg"
+            >
+              {isLoading ? (
+                <div className="flex items-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span style={{ fontSize: '12px' }}>Signing in with Google...</span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {/* Google Icon SVG */}
+                  <svg className="w-4 h-4" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M44.5 20H24V28.5H35.5C34.7 32.2 32.1 35.1 28.5 37.1V42.6C37.1 40.1 43.1 32.2 44.5 20Z" fill="#4285F4" />
+                    <path d="M24 44C30.6 44 36.2 41.8 40.4 37.9L35.5 32.4C32.1 34.6 28.5 36.1 24 36.1C18.6 36.1 13.9 32.6 12.1 27.8L7.1 31.6C9.9 37.3 16.4 44 24 44Z" fill="#34A853" />
+                    <path d="M12.1 27.8C11.6 26.4 11.3 25.1 11.3 24C11.3 22.9 11.6 21.6 12.1 20.2L7.1 16.4C5.3 19.8 4.3 21.9 4.3 24C4.3 26.1 5.3 28.2 7.1 31.6L12.1 27.8Z" fill="#FBBC05" />
+                    <path d="M24 11.9C27.2 11.9 30 13.1 32.2 15.1L37.1 10.2C33.9 7.3 29.3 4 24 4C16.4 4 9.9 10.7 7.1 16.4L12.1 20.2C13.9 15.4 18.6 11.9 24 11.9Z" fill="#EA4335" />
+                  </svg>
+                  <span style={{ fontSize: '12px' }}>Sign in with Google</span>
+                </div>
+              )}
+            </Button>
+
+            {!isLogin && (
+              <p className="text-muted-foreground text-center leading-relaxed" style={{ fontSize: '11px' }}>
+                By creating an account, you agree to our{' '}
+                <Button variant="link" className="text-primary hover:underline p-0 h-auto" style={{ fontSize: '11px' }}>
+                  Terms of Service
+                </Button>
+                {' '}and{' '}
+                <Button variant="link" className="text-primary hover:underline p-0 h-auto" style={{ fontSize: '11px' }}>
+                  Privacy Policy
+                </Button>
+              </p>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

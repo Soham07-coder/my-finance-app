@@ -1,5 +1,7 @@
+// src/pages/AddTransactionPage.jsx
+
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, MapPin, DollarSign, Calendar as CalendarIcon, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, MapPin, DollarSign, AlertCircle } from 'lucide-react';
 import axios from 'axios';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
@@ -9,9 +11,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { paymentMethods } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { useNavigate } from 'react-router-dom';
-import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
-import { Calendar } from './ui/calendar';
-import { format } from 'date-fns';
 
 export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
   const [formData, setFormData] = useState({
@@ -24,7 +23,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     isPersonal: viewMode === 'personal',
     notes: '',
     location: '',
-    date: new Date(),
+    date: new Date().toISOString().split('T')[0], // Set default date to today in YYYY-MM-DD format
   });
 
   const [errors, setErrors] = useState({});
@@ -150,7 +149,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
       
       // Before saving the transaction, send a final request to check for the location and send an alert
       if (transactionData.paymentMethod === 'cash') {
-         await axios.post('http://localhost:5000/api/alerts/check-cash-payment', { location: transactionData.location }, config);
+          await axios.post('http://localhost:5000/api/alerts/check-cash-payment', { location: transactionData.location }, config);
       }
 
       await axios.post('http://localhost:5000/api/transactions', transactionData, config);
@@ -352,30 +351,15 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                 <Label htmlFor="date" style={{ fontSize: '12px', fontWeight: '500' }}>
                   Date
                 </Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "w-full justify-start text-left font-normal h-12",
-                        !formData.date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {formData.date ? format(formData.date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={formData.date}
-                      onSelect={(newDate) => {
-                        if (newDate) handleInputChange('date', newDate);
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => handleInputChange('date', e.target.value)}
+                  className="h-12"
+                  style={{ fontSize: '12px' }}
+                  required
+                />
               </div>
 
               {/* Category */}

@@ -193,4 +193,156 @@ router.post('/leave', async (req, res) => {
     }
 });
 
+router.put('/settings/spending-limit', async (req, res) => {
+    const { newLimit } = req.body;
+    const userId = req.user.uid;
+
+    if (typeof newLimit !== 'number' || newLimit <= 0) {
+        return res.status(400).json({ msg: 'Invalid spending limit provided.' });
+    }
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const familyId = userDoc.data()?.familyId;
+
+        if (!familyId) {
+            return res.status(400).json({ msg: 'You must be in a family to set a spending limit.' });
+        }
+
+        const familyRef = db.collection('families').doc(familyId);
+        const familyDoc = await familyRef.get();
+        const familyData = familyDoc.data();
+
+        // Check if the user is a family admin
+        if (familyData.members[userId] !== 'admin') {
+            return res.status(403).json({ msg: 'Only family admins can set a spending limit.' });
+        }
+
+        // Update the spending limit in the family document
+        await familyRef.update({
+            'settings.monthlySpendingLimit': newLimit,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        res.json({ msg: 'Monthly spending limit updated successfully.' });
+
+    } catch (err) {
+        console.error('Error updating spending limit:', err.message);
+        res.status(500).json({ msg: 'Server error: Failed to update spending limit.' });
+    }
+});
+
+// @route   PUT /api/families/members/:memberId/permissions
+// @desc    Allows an admin to change the role of another family member.
+// @access  Private, Admin only
+router.put('/members/:memberId/permissions', async (req, res) => {
+    const { memberId } = req.params;
+    const { newRole } = req.body;
+    const userId = req.user.uid;
+
+    if (!newRole || (newRole !== 'member' && newRole !== 'admin')) {
+        return res.status(400).json({ msg: 'Invalid role provided.' });
+    }
+
+    if (userId === memberId) {
+        return res.status(400).json({ msg: 'You cannot change your own role.' });
+    }
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const familyId = userDoc.data()?.familyId;
+
+        if (!familyId) {
+            return res.status(400).json({ msg: 'You are not in a family.' });
+        }
+
+        const familyRef = db.collection('families').doc(familyId);
+        const familyDoc = await familyRef.get();
+        const familyData = familyDoc.data();
+
+        if (familyData.members[userId] !== 'admin') {
+            return res.status(403).json({ msg: 'Permission denied. Only family admins can change member roles.' });
+        }
+
+        if (!familyData.members[memberId]) {
+            return res.status(404).json({ msg: 'Member not found in this family.' });
+        }
+
+        const updatedMembers = { ...familyData.members, [memberId]: newRole };
+        await familyRef.update({ members: updatedMembers });
+
+        res.json({ msg: 'Member role updated successfully.' });
+
+    } catch (err) {
+        console.error('Error updating member permissions:', err.message);
+        res.status(500).json({ msg: 'Server error: Failed to update member permissions.' });
+    }
+});
+
+// @route   GET /api/families/members/:memberId/details
+// @desc    Get detailed information for a single family member.
+// @access  Private
+router.get('/members/:memberId/details', async (req, res) => {
+    const { memberId } = req.params;
+    const userId = req.user.uid;
+    const now = admin.firestore.Timestamp.now();
+    const startOfMonth = new Date(now.toDate().getFullYear(), now.toDate().getMonth(), 1);
+
+    try {
+        const userDoc = await db.collection('users').doc(userId).get();
+        const familyId = userDoc.data()?.familyId;
+        
+        if (!familyId) {
+            return res.status(400).json({ msg: 'You are not in a family.' });
+        }
+        
+        const memberDoc = await db.collection('users').doc(memberId).get();
+        if (!memberDoc.exists) {
+            return res.status(404).json({ msg: 'Member not found.' });
+        }
+
+        const memberTransactionsSnapshot = await db.collection('transactions')
+            .where('userId', '==', memberId)
+            .where('familyId', '==', familyId)
+            .get();
+
+        const transactions = memberTransactionsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                date: data.date ? data.date.toDate().toISOString() : null,
+            };
+        });
+        transactions.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        const monthlyTransactions = transactions.filter(t => new Date(t.date) >= startOfMonth);
+        const monthlySpending = monthlyTransactions.reduce((sum, t) => sum + t.amount, 0);
+
+        const spendingBreakdown = monthlyTransactions.reduce((acc, t) => {
+            const existingCategory = acc.find(item => item.category === t.category);
+            if (existingCategory) {
+                existingCategory.amount += t.amount;
+            } else {
+                acc.push({ category: t.category, amount: t.amount });
+            }
+            return acc;
+        }, []);
+
+        const details = {
+            id: memberDoc.id,
+            ...memberDoc.data(),
+            monthlySpending,
+            spendingBreakdown,
+            transactionHistory: transactions
+        };
+
+        res.json(details);
+
+    } catch (err) {
+        console.error('Error fetching member details:', err.message);
+        res.status(500).json({ msg: 'Server error: Failed to fetch member details.' });
+    }
+});
+
 module.exports = router;

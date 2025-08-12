@@ -169,4 +169,40 @@ router.post('/get-location', async (req, res) => {
     }
 });
 
+
+// @route   POST /api/alerts/expense
+// @desc    Checks for an expense alert based on predefined rules and creates an alert if needed.
+// @access  Private
+// ** NEW ROUTE **
+router.post('/expense', async (req, res) => {
+    const { amount, category, merchant } = req.body;
+    const userId = req.user.uid;
+
+    try {
+        const averageSpending = 200; // Mock average spending for a category
+
+        // 2. Define a spending anomaly rule (e.g., > 2x average)
+        if (amount > averageSpending * 2) {
+            const newAlert = {
+                userId,
+                type: 'spending_anomaly',
+                message: `An unusually high expense of ${amount} was detected at ${merchant} in the '${category}' category.`,
+                isResolved: false,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                details: { amount, category, merchant }
+            };
+
+            await db.collection('alerts').add(newAlert);
+            console.log('Spending anomaly alert created for user:', userId);
+            return res.status(201).json({ msg: 'Expense alert created successfully.', alert: newAlert });
+        }
+
+        res.status(200).json({ msg: 'Expense processed, no alert needed.' });
+
+    } catch (err) {
+        console.error('Error processing expense alert:', err.message);
+        res.status(500).json({ msg: 'Server error: Failed to process expense alert.' });
+    }
+});
+
 module.exports = router;

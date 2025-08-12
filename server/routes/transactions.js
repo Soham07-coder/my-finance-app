@@ -208,7 +208,6 @@ router.delete('/:id', async (req, res) => {
 
 // @route   POST /api/transactions/export-csv
 // @desc    Exports transactions as a CSV. Accepts a 'scope' (personal/family).
-// ** NEW ROUTE **
 router.post('/export-csv', async (req, res) => {
     const userId = req.user.uid;
     const { scope } = req.body; // 'personal' or 'family'
@@ -271,7 +270,6 @@ router.post('/export-csv', async (req, res) => {
 
 // @route   POST /api/transactions/export-pdf
 // @desc    Exports transactions as a PDF. Accepts a 'scope' (personal/family).
-// ** NEW ROUTE **
 router.post('/export-pdf', async (req, res) => {
     const userId = req.user.uid;
     const { scope } = req.body; // 'personal' or 'family'
@@ -315,10 +313,27 @@ router.post('/export-pdf', async (req, res) => {
             };
         });
 
-        res.json({
-            msg: `Conceptual PDF export for ${scope} transactions.`,
-            data: transactionsData
+        const doc = new PDFDocument();
+        
+        res.header('Content-Type', 'application/pdf');
+        res.header('Content-Disposition', `attachment; filename="${scope}_transactions.pdf"`);
+        doc.pipe(res);
+        
+        doc.fontSize(25).text('Financial Transaction Report', { align: 'center' });
+        doc.text('\n');
+        doc.fontSize(16).text(`Scope: ${scope.charAt(0).toUpperCase() + scope.slice(1)} Transactions`);
+        doc.text('\n');
+        
+        transactionsData.forEach(t => {
+            doc.fontSize(12).text(`Date: ${t.date}`);
+            doc.text(`Description: ${t.description}`);
+            doc.text(`Amount: ${t.amount}`);
+            doc.text(`Category: ${t.category}`);
+            doc.text(`Type: ${t.type}`);
+            doc.text('------------------------------\n');
         });
+
+        doc.end();
 
     } catch (err) {
         console.error('Error exporting data:', err.message);

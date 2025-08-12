@@ -13,7 +13,8 @@ import {
   Eye,
   Copy,
   Check,
-  Download
+  Download,
+  Settings,
 } from 'lucide-react';
 import {
   Card,
@@ -47,23 +48,20 @@ export function MyFamilyPage() {
   const [isButtonLoading, setIsButtonLoading] = useState(false);
   const [newSpendingLimit, setNewSpendingLimit] = useState('');
   const [showSpendingLimitInput, setShowSpendingLimitInput] = useState(false);
-  
-  // New state for export functionality
+
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState('csv');
-  const [exportScope, setExportScope] = useState('family'); // Added state for export scope
+  const [exportScope, setExportScope] = useState('family');
 
-  // New state for Edit Permissions, View Details, and Export
   const [showPermissionsModal, setShowPermissionsModal] = useState(false);
   const [selectedMember, setSelectedMember] = useState(null);
   const [selectedRole, setSelectedRole] = useState('');
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [viewedMember, setViewedMember] = useState(null);
-  const [currentUserRole, setCurrentUserRole] = useState('member'); // Default to member
+  const [currentUserRole, setCurrentUserRole] = useState('member');
 
-   // Function to determine if the current user is an admin
   const isCurrentUserAdmin = () => currentUserRole === 'admin';
-  // Fetch family data and invitations from backend
+
   useEffect(() => {
     const fetchFamilyData = async () => {
       setIsLoading(true);
@@ -78,17 +76,25 @@ export function MyFamilyPage() {
           setFamilyMembers(familyData.members || []);
           setFamilyId(familyData.id || '');
           setInvitationHistory(familyData.invitations || []);
+
+          // Correctly extract the user's ID from the token
+          const currentUserId = JSON.parse(atob(token.split('.')[1])).uid;
+          const userMember = familyData.members.find(m => m.id === currentUserId);
+          if (userMember) {
+            setCurrentUserRole(userMember.role);
+          }
         } else {
-          // No family found for the user
           setFamilyMembers([]);
           setInvitationHistory([]);
           setFamilyId('');
+          setCurrentUserRole('member');
         }
       } catch (e) {
         console.error('Failed to fetch family data', e);
         setFamilyMembers([]);
         setInvitationHistory([]);
         setFamilyId('');
+        setCurrentUserRole('member');
       } finally {
         setIsLoading(false);
       }
@@ -120,7 +126,6 @@ export function MyFamilyPage() {
       );
       setInviteEmail('');
       setShowInviteForm(false);
-
       const res = await axios.get('http://localhost:5000/api/families/my-family', config);
       const familyData = res.data;
       if (familyData) {
@@ -169,18 +174,16 @@ export function MyFamilyPage() {
     }, 1000);
   };
 
-  // Handler for exporting data based on user selection
   const handleExportClick = async () => {
     setIsButtonLoading(true);
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
-      let res;
       let url;
       let fileName;
       let contentType;
       let isBinary = false;
-
+  
       if (exportFormat === 'csv') {
         url = 'http://localhost:5000/api/transactions/export-csv';
         fileName = `${exportScope}_transactions.csv`;
@@ -195,19 +198,25 @@ export function MyFamilyPage() {
       const payload = { scope: exportScope };
       const axiosConfig = isBinary ? { ...config, responseType: 'blob' } : config;
       
-      res = await axios.post(url, payload, axiosConfig);
+      const res = await axios.post(url, payload, axiosConfig);
       
-      if (res.data.msg) {
+      // Handle server-side message for non-binary responses
+      if (res.data.msg && !isBinary) {
         alert(res.data.msg);
       }
       
-      if (isBinary && res.data) {
+      // Handle file download
+      if (res.data && res.status === 200) {
         const blob = new Blob([res.data], { type: contentType });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
         link.download = fileName;
+        document.body.appendChild(link);
         link.click();
+        document.body.removeChild(link);
         URL.revokeObjectURL(link.href);
+      } else if (res.status === 404) {
+        alert(res.data.msg);
       }
       
       setShowExportModal(false);
@@ -416,7 +425,6 @@ export function MyFamilyPage() {
         </Card>
       </div>
 
-      {/* Invite Form */}
       {showInviteForm && (
         <Card className="shadow-lg border-2 border-emerald-200 dark:border-emerald-800 animate-slide-up">
           <CardHeader className="pb-4 bg-gradient-to-r from-emerald-50 to-green-50 dark:from-emerald-950/20 dark:to-green-950/20">
@@ -738,7 +746,8 @@ export function MyFamilyPage() {
           </Card>
         </div>
       </div>
-    {showPermissionsModal && selectedMember && (
+
+      {showPermissionsModal && selectedMember && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <Card className="w-full max-w-sm">
             <CardHeader>

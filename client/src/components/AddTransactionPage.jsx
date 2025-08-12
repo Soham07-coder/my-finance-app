@@ -141,7 +141,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
         category: formData.categoryName,
         userId: userIdToSend,
         familyId: familyIdToSend,
-        date: formData.date.toISOString(),
+        date: new Date(formData.date).toISOString(),
         isPersonal: !!formData.isPersonal,
       };
 

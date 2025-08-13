@@ -1,7 +1,7 @@
 // src/pages/AddTransactionPage.jsx
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, MapPin, DollarSign, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Save, MapPin, DollarSign, AlertCircle, Settings } from 'lucide-react';
 import axios from 'axios';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
@@ -11,6 +11,59 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { paymentMethods } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
 import { useNavigate } from 'react-router-dom';
+
+const convertAmountToWords = (num) => {
+  if (num === null || num === undefined || num === '') {
+    return '';
+  }
+
+  num = Math.floor(num);
+
+  const a = ['', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ', 'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen '];
+  const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+
+  const numToWords = (n) => {
+    let words = '';
+    if (n < 20) {
+      words = a[n];
+    } else {
+      words = b[Math.floor(n / 10)];
+      if (n % 10 !== 0) {
+        words += ' ' + a[n % 10];
+      }
+    }
+    return words;
+  };
+
+  const convert = (n) => {
+    let words = '';
+    if (n >= 10000000) {
+      words += convert(Math.floor(n / 10000000)) + 'crore ';
+      n %= 10000000;
+    }
+    if (n >= 100000) {
+      words += numToWords(Math.floor(n / 100000)) + 'lakh ';
+      n %= 100000;
+    }
+    if (n >= 1000) {
+      words += numToWords(Math.floor(n / 1000)) + 'thousand ';
+      n %= 1000;
+    }
+    if (n >= 100) {
+      words += a[Math.floor(n / 100)] + 'hundred ';
+      n %= 100;
+    }
+    if (n > 0) {
+      words += numToWords(n);
+    }
+    return words.trim();
+  };
+
+  const integerPart = Math.floor(num);
+  const words = convert(integerPart);
+
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) + ' rupees' : ' ';
+};
 
 export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
   const [formData, setFormData] = useState({
@@ -32,10 +85,18 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [amountInWords, setAmountInWords] = useState('');
+  const [showViewModeAlert, setShowViewModeAlert] = useState(false);
 
-  // Sync isPersonal when viewMode updates (important for async user/viewMode changes)
+  // Sync isPersonal when viewMode updates and show alert
   useEffect(() => {
     setFormData((prev) => ({ ...prev, isPersonal: viewMode === 'personal' }));
+    if (showViewModeAlert) {
+      const mode = viewMode === 'personal' ? 'Personal' : 'Family';
+      alert(`Switched to ${mode} mode.`);
+    }
+    // Set to true after the first render to enable subsequent alerts
+    setShowViewModeAlert(true);
   }, [viewMode]);
 
   useEffect(() => {
@@ -71,15 +132,15 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     if (formData.paymentMethod === 'cash' && navigator.geolocation) {
       setLocationLoading(true);
       setFormData(prev => ({ ...prev, location: "Detecting location..." }));
-      
+
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-          
+
           try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}` } };
-            
+
             // Send coordinates to the backend to get location
             const res = await axios.post('http://localhost:5000/api/alerts/get-location', { latitude, longitude }, config);
             const currentLocation = res.data.location;
@@ -146,10 +207,9 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
       };
 
       console.log('Posting transactionData:', transactionData);
-      
-      // Before saving the transaction, send a final request to check for the location and send an alert
+
       if (transactionData.paymentMethod === 'cash') {
-          await axios.post('http://localhost:5000/api/alerts/check-cash-payment', { location: transactionData.location }, config);
+        await axios.post('http://localhost:5000/api/alerts/cash-payment', { location: transactionData.location }, config);
       }
 
       await axios.post('http://localhost:5000/api/transactions', transactionData, config);
@@ -171,6 +231,10 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
         categoryName: selectedCategory ? selectedCategory.name : '',
       }));
       if (errors.categoryId) setErrors(prev => ({ ...prev, categoryId: '' }));
+    } else if (field === 'amount') {
+      setFormData(prev => ({ ...prev, [field]: value }));
+      const parsedAmount = parseFloat(value);
+      setAmountInWords(convertAmountToWords(parsedAmount));
     } else {
       setFormData(prev => ({ ...prev, [field]: value }));
       if (errors[field]) setErrors(prev => ({ ...prev, [field]: '' }));
@@ -317,6 +381,11 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                   <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
                     <span className="w-1 h-1 bg-destructive rounded-full"></span>
                     {errors.amount}
+                  </p>
+                )}
+                {amountInWords && (
+                  <p style={{ fontSize: '11px' }} className="text-muted-foreground">
+                    {amountInWords}
                   </p>
                 )}
               </div>

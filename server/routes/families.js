@@ -56,7 +56,8 @@ router.get('/my-family', async (req, res) => {
         }
 
         // Fetch the family document
-        const familyDoc = await db.collection('families').doc(familyId).get();
+        const familyRef = db.collection('families').doc(familyId);
+        const familyDoc = await familyRef.get();
         if (!familyDoc.exists) {
             // This case indicates a data inconsistency, user has a familyId but family doc doesn't exist
             console.warn(`User ${userId} has familyId ${familyId} but family document does not exist.`);
@@ -75,7 +76,18 @@ router.get('/my-family', async (req, res) => {
             role: familyData.members[doc.id] // Get role from the family document's members map
         }));
 
-        res.json({ ...familyData, members: membersData });
+        // Fetch invitation history
+        const invitationsSnapshot = await familyRef.collection('invitations').orderBy('sentAt', 'desc').get();
+        const invitationsData = invitationsSnapshot.docs.map(doc => {
+            const data = doc.data();
+            return {
+                id: doc.id,
+                ...data,
+                sentAt: data.sentAt ? data.sentAt.toDate().toISOString() : null
+            }
+        });
+
+        res.json({ ...familyData, members: membersData, invitations: invitationsData });
     } catch (err) {
         console.error('Error fetching family details:', err.message);
         res.status(500).send('Server Error');
@@ -125,6 +137,81 @@ router.post('/join', async (req, res) => {
             return res.status(400).json({ msg: err.message });
         }
         console.error('Error joining family:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+// @route   POST /api/families/invite
+// @desc    Invite a user to the family by email.
+// @access  Private, Admin only
+router.post('/invite', async (req, res) => {
+    const { email } = req.body;
+    const adminId = req.user.uid;
+
+    if (!email) {
+        return res.status(400).json({ msg: 'Please provide an email to invite.' });
+    }
+
+    try {
+        // 1. Get admin's family details
+        const adminUserDoc = await db.collection('users').doc(adminId).get();
+        const familyId = adminUserDoc.data()?.familyId;
+
+        if (!familyId) {
+            return res.status(400).json({ msg: 'You are not in a family to invite members.' });
+        }
+
+        // 2. Verify admin role
+        const familyRef = db.collection('families').doc(familyId);
+        const familyDoc = await familyRef.get();
+        if (!familyDoc.exists) {
+            return res.status(404).json({ msg: 'Family not found.' });
+        }
+        const familyData = familyDoc.data();
+        if (familyData.members[adminId] !== 'admin') {
+            return res.status(403).json({ msg: 'Only family admins can invite members.' });
+        }
+
+        // 3. Find the user to invite by email
+        const usersRef = db.collection('users');
+        const invitedUserQuery = await usersRef.where('email', '==', email).limit(1).get();
+
+        if (invitedUserQuery.empty) {
+            return res.status(404).json({ msg: `User with email ${email} not found.` });
+        }
+
+        const invitedUserDoc = invitedUserQuery.docs[0];
+        const invitedUserId = invitedUserDoc.id;
+        const invitedUserData = invitedUserDoc.data();
+
+        // 4. Check if the invited user is already in a family
+        if (invitedUserData.familyId) {
+            return res.status(400).json({ msg: 'This user is already in a family.' });
+        }
+
+        // 5. Check for existing pending invitation
+        const invitationsRef = familyRef.collection('invitations');
+        const existingInviteQuery = await invitationsRef.where('email', '==', email).where('status', '==', 'pending').get();
+
+        if (!existingInviteQuery.empty) {
+            return res.status(400).json({ msg: 'An invitation has already been sent to this email.' });
+        }
+
+        // 6. Create the invitation document
+        const newInvitation = {
+            email: email,
+            userId: invitedUserId,
+            status: 'pending',
+            sentAt: admin.firestore.FieldValue.serverTimestamp(),
+            invitedBy: adminId,
+        };
+
+        await invitationsRef.add(newInvitation);
+
+        res.status(201).json({ msg: `Invitation sent to ${email}.` });
+
+    } catch (err) {
+        console.error('Error sending invitation:', err.message);
         res.status(500).send('Server Error');
     }
 });

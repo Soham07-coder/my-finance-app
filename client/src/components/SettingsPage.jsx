@@ -4,26 +4,26 @@ import { FiPlus, FiTrash2 } from 'react-icons/fi';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
 import { Input } from './ui/input.jsx';
+import { Separator } from './ui/separator.jsx';
 import { Label } from './ui/label.jsx';
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar.jsx';
 import { Badge } from './ui/badge.jsx';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs.jsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select.jsx';
-import { Separator } from './ui/separator.jsx';
-import { 
-  User, 
-  Users, 
-  Camera, 
-  Mail, 
-  Phone, 
-  MapPin, 
-  Shield, 
-  Plus,
-  Crown,
-  Copy,
-  Check,
-  MoreVertical,
+import {
+    User,
+    Users,
+    Camera,
+    Mail,
+    Phone,
+    MapPin,
+    Shield,
+    Plus,
+    Crown,
+    Copy,
+    Check,
+    MoreVertical,
 } from 'lucide-react';
 import { cn } from '../lib/utils.js';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu.jsx';
@@ -709,7 +709,9 @@ export function SettingsPage({ onLogout, onNavigate }) {
                                                 </AvatarFallback>
                                             </Avatar>
                                             <div>
-                                                <p className="font-medium">{member.name}</p>
+                                                <div className="flex items-center space-x-2">
+                                                    <p className="font-medium">{member.name}</p>
+                                                </div>
                                                 <p className="text-sm text-muted-foreground">{member.email}</p>
                                             </div>
                                         </div>
@@ -831,5 +833,5 @@ export function SettingsPage({ onLogout, onNavigate }) {
                 />
             )}
         </div>
-    );
+    )
 }

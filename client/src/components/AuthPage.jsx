@@ -1,3 +1,5 @@
+// src/pages/AuthPage.jsx
+
 import React, { useState } from 'react';
 import { Eye, EyeOff, Mail, Lock, User, Phone, ArrowRight, AlertCircle, DollarSign, Loader2 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
@@ -7,7 +9,7 @@ import { Label } from './ui/label.jsx';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Separator } from './ui/separator.jsx';
 import { cn } from '../lib/utils.js';
-import { auth } from '../firebase'; // Import the Firebase auth instance
+import { auth } from '../firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
@@ -15,7 +17,7 @@ import {
   signInWithPopup,
   sendPasswordResetEmail
 } from 'firebase/auth';
-import axios from 'axios'; // Still needed for the Google Sign-In backend call
+import axios from 'axios';
 
 export function AuthPage({ onAuthSuccess }) {
   const [isLogin, setIsLogin] = useState(true);
@@ -91,11 +93,11 @@ export function AuthPage({ onAuthSuccess }) {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleAuthSuccess = async (user) => {
+  const handleAuthSuccess = async (user, isNewUser = false) => {
     try {
       const idToken = await user.getIdToken();
-      const postData = { idToken };
-      if (!isLogin) {
+      const postData = { idToken, isNewUser };
+      if (isNewUser) {
         postData.name = formData.name;
         postData.phone = formData.phone;
       }
@@ -107,7 +109,6 @@ export function AuthPage({ onAuthSuccess }) {
     } catch (backendError) {
       console.error("Backend Verification Error:", backendError);
       setFirebaseError('Failed to verify user with backend. Please try again.');
-    } finally {
       setIsLoading(false);
     }
   };
@@ -121,11 +122,12 @@ export function AuthPage({ onAuthSuccess }) {
       if (isLogin) {
         userCredential = await signInWithEmailAndPassword(auth, formData.email, formData.password);
         console.log('User signed in successfully with email/password!');
+        await handleAuthSuccess(userCredential.user);
       } else {
         userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
         console.log('User created successfully with email/password!');
+        await handleAuthSuccess(userCredential.user, true);
       }
-      await handleAuthSuccess(userCredential.user);
     } catch (error) {
       console.error('Firebase Auth Error:', error.code, error.message);
       let errorMessage = 'An unexpected error occurred. Please try again.';
@@ -164,7 +166,9 @@ export function AuthPage({ onAuthSuccess }) {
       const provider = new GoogleAuthProvider();
       const userCredential = await signInWithPopup(auth, provider);
       console.log('Google Sign-In successful with Firebase!');
-      await handleAuthSuccess(userCredential.user);
+      
+      const isNewUser = userCredential.additionalUserInfo.isNewUser;
+      await handleAuthSuccess(userCredential.user, isNewUser);
     } catch (error) {
       console.error('Google Sign-In Error:', error.code, error.message);
       let errorMessage = 'Failed to sign in with Google. Please try again.';
@@ -199,7 +203,6 @@ export function AuthPage({ onAuthSuccess }) {
       "min-h-screen bg-background flex items-center justify-center text-base leading-relaxed",
       "p-4 sm:p-6 lg:p-8"
     )}>
-      {/* Right Side - Auth Form (now centered) */}
       <div className="w-full max-w-md mx-auto">
         <Card className={cn(
           "border border-border shadow-sm bg-card",
@@ -410,6 +413,12 @@ export function AuthPage({ onAuthSuccess }) {
                   )}
                 </div>
               )}
+              {firebaseError && (
+                <div className="flex items-center gap-1 text-destructive" style={{ fontSize: '11px' }}>
+                  <AlertCircle className="w-3 h-3" />
+                  <span>{firebaseError}</span>
+                </div>
+              )}
               <Button
                 type="submit"
                 disabled={isLoading}
@@ -452,7 +461,6 @@ export function AuthPage({ onAuthSuccess }) {
             </div>
 
 
-            {/* Google Sign-In Button */}
             <Button
               onClick={handleGoogleSignIn}
               disabled={isLoading}

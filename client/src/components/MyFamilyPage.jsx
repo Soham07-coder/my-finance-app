@@ -1,6 +1,6 @@
 // src/pages/MyFamilyPage.jsx
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Users,
@@ -15,6 +15,9 @@ import {
   Check,
   Download,
   Settings,
+  Home,
+  LogIn,
+  AlertCircle
 } from 'lucide-react';
 import {
   Card,
@@ -59,49 +62,97 @@ export function MyFamilyPage() {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [viewedMember, setViewedMember] = useState(null);
   const [currentUserRole, setCurrentUserRole] = useState('member');
+  
+  // New state for joining or creating a family
+  const [newFamilyName, setNewFamilyName] = useState('');
+  const [joinFamilyId, setJoinFamilyId] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
 
   const isCurrentUserAdmin = () => currentUserRole === 'admin';
 
-  useEffect(() => {
-    const fetchFamilyData = async () => {
-      setIsLoading(true);
-      try {
-        const token = localStorage.getItem('token');
-        const config = { headers: { Authorization: `Bearer ${token}` } };
-        
-        const res = await axios.get('http://localhost:5000/api/families/my-family', config);
-        const familyData = res.data;
+  const fetchFamilyData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      
+      const res = await axios.get('http://localhost:5000/api/families/my-family', config);
+      const familyData = res.data;
 
-        if (familyData) {
-          setFamilyMembers(familyData.members || []);
-          setFamilyId(familyData.id || '');
-          setInvitationHistory(familyData.invitations || []);
+      if (familyData) {
+        setFamilyMembers(familyData.members || []);
+        setFamilyId(familyData.id || '');
+        setInvitationHistory(familyData.invitations || []);
 
-          // Correctly extract the user's ID from the token
-          const currentUserId = JSON.parse(atob(token.split('.')[1])).uid;
-          const userMember = familyData.members.find(m => m.id === currentUserId);
-          if (userMember) {
-            setCurrentUserRole(userMember.role);
-          }
-        } else {
-          setFamilyMembers([]);
-          setInvitationHistory([]);
-          setFamilyId('');
-          setCurrentUserRole('member');
+        const currentUserId = JSON.parse(atob(token.split('.')[1])).uid;
+        const userMember = familyData.members.find(m => m.id === currentUserId);
+        if (userMember) {
+          setCurrentUserRole(userMember.role);
         }
-      } catch (e) {
-        console.error('Failed to fetch family data', e);
+      } else {
         setFamilyMembers([]);
         setInvitationHistory([]);
         setFamilyId('');
         setCurrentUserRole('member');
-      } finally {
-        setIsLoading(false);
       }
-    };
-
-    fetchFamilyData();
+    } catch (e) {
+      console.error('Failed to fetch family data', e);
+      setFamilyMembers([]);
+      setInvitationHistory([]);
+      setFamilyId('');
+      setCurrentUserRole('member');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
+
+
+  useEffect(() => {
+    fetchFamilyData();
+  }, [fetchFamilyData]);
+
+  const handleCreateFamily = async (e) => {
+    e.preventDefault();
+    if (!newFamilyName.trim()) {
+      setActionError('Please enter a family name.');
+      return;
+    }
+    setIsActionLoading(true);
+    setActionError('');
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.post('http://localhost:5000/api/families/create', { name: newFamilyName }, config);
+      await fetchFamilyData(); // Re-fetch data to show the new family view
+    } catch (err) {
+      setActionError(err.response?.data?.msg || 'Failed to create family.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleJoinFamily = async (e) => {
+    e.preventDefault();
+    if (!joinFamilyId.trim()) {
+      setActionError('Please enter a family ID to join.');
+      return;
+    }
+    setIsActionLoading(true);
+    setActionError('');
+    try {
+      const token = localStorage.getItem('token');
+      const config = { headers: { Authorization: `Bearer ${token}` } };
+      await axios.post('http://localhost:5000/api/families/join', { familyId: joinFamilyId }, config);
+      await fetchFamilyData(); // Re-fetch data to show the joined family view
+    } catch (err) {
+      setActionError(err.response?.data?.msg || 'Failed to join family. Check the ID and try again.');
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
 
   const totalMembers = familyMembers.length;
   const totalSpending = familyMembers.reduce(
@@ -200,12 +251,10 @@ export function MyFamilyPage() {
       
       const res = await axios.post(url, payload, axiosConfig);
       
-      // Handle server-side message for non-binary responses
       if (res.data.msg && !isBinary) {
         alert(res.data.msg);
       }
       
-      // Handle file download
       if (res.data && res.status === 200) {
         const blob = new Blob([res.data], { type: contentType });
         const link = document.createElement('a');
@@ -288,6 +337,73 @@ export function MyFamilyPage() {
     );
   }
 
+  // Render this view if the user is NOT in a family
+  if (!familyId) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[70vh] p-4 text-center animate-fade-in space-y-8">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Welcome!</h1>
+          <p className="text-muted-foreground">You are not part of a family yet. Create one or join with an invite code.</p>
+        </div>
+        
+        {actionError && (
+          <div className="bg-destructive/10 text-destructive border border-destructive/30 p-3 rounded-lg flex items-center gap-2 text-sm">
+            <AlertCircle className="w-4 h-4" /> {actionError}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 w-full max-w-4xl">
+          {/* Create Family Card */}
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><Home className="w-5 h-5 text-primary" /> Create a New Family</CardTitle>
+              <CardDescription>Start a new financial group and invite your family members.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleCreateFamily} className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Enter your family's name"
+                  value={newFamilyName}
+                  onChange={(e) => setNewFamilyName(e.target.value)}
+                  disabled={isActionLoading}
+                  required
+                />
+                <Button type="submit" className="w-full" disabled={isActionLoading}>
+                  {isActionLoading ? 'Creating...' : 'Create Family'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+
+          {/* Join Family Card */}
+          <Card className="shadow-lg hover:shadow-xl transition-shadow duration-300">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><LogIn className="w-5 h-5 text-primary" /> Join an Existing Family</CardTitle>
+              <CardDescription>Enter the invite code you received from a family member.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleJoinFamily} className="space-y-4">
+                <Input
+                  type="text"
+                  placeholder="Enter Family ID (Invite Code)"
+                  value={joinFamilyId}
+                  onChange={(e) => setJoinFamilyId(e.target.value)}
+                  disabled={isActionLoading}
+                  required
+                />
+                <Button type="submit" variant="secondary" className="w-full" disabled={isActionLoading}>
+                  {isActionLoading ? 'Joining...' : 'Join Family'}
+                </Button>
+              </form>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Render this view if the user IS in a family
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -344,7 +460,7 @@ export function MyFamilyPage() {
             <div className="flex items-center justify-between">
               <div className="space-y-2">
                 <p style={{ fontSize: '12px', fontWeight: '500' }} className="text-purple-700 dark:text-purple-300">
-                  Family ID
+                  Family ID (Invite Code)
                 </p>
                 <p
                   style={{ fontSize: '16px', fontWeight: '700', fontFamily: 'monospace' }}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
-  Plus, TrendingUp, TrendingDown, Wallet, Users, Eye, EyeOff, Target, Clock, MapPin
+  Plus, TrendingUp, TrendingDown, Wallet, Users, Eye, EyeOff, Target, Clock, MapPin, Info
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
@@ -9,11 +9,24 @@ import { Avatar, AvatarFallback } from './ui/avatar.jsx';
 import { Badge } from './ui/badge.jsx';
 import { formatCurrency, formatDateShort, cn } from '../lib/utils.js';
 
+// A simple, self-hiding alert component
+const ViewModeAlert = ({ message }) => {
+  if (!message) return null;
+  return (
+    <div className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-background text-foreground border shadow-lg rounded-full px-6 py-3 flex items-center gap-2 animate-fade-in-down">
+      <Info className="w-5 h-5 text-blue-500" />
+      <span className="text-sm font-medium">{message}</span>
+    </div>
+  );
+};
+
+
 export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
   const [transactions, setTransactions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [balanceVisible, setBalanceVisible] = useState(true);
+  const [balanceVisible, setBalanceVisible] = useState(false); // Hide balance by default
   const [timeOfDay, setTimeOfDay] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
 
   // Fetch transactions based on viewMode
   useEffect(() => {
@@ -36,6 +49,18 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
     };
     fetchTransactions();
   }, [viewMode]);
+
+  // Effect for showing view mode switch alert
+  useEffect(() => {
+    if (viewMode) {
+      setAlertMessage(`Switched to ${viewMode} view`);
+      const timer = setTimeout(() => {
+        setAlertMessage('');
+      }, 2500); // Alert disappears after 2.5 seconds
+      return () => clearTimeout(timer);
+    }
+  }, [viewMode]);
+
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -73,6 +98,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <ViewModeAlert message={alertMessage} />
       {/* Welcome Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
@@ -164,7 +190,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
           </CardHeader>
           <CardContent className="space-y-3">
             <div style={{ fontSize: '24px', fontWeight: '800', lineHeight: '1.2' }} className="text-emerald-900 dark:text-emerald-100">
-              {formatCurrency(income)}
+               {balanceVisible ? formatCurrency(income) : '••••••'}
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
@@ -188,7 +214,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
           </CardHeader>
           <CardContent className="space-y-3">
             <div style={{ fontSize: '24px', fontWeight: '800', lineHeight: '1.2' }} className="text-red-900 dark:text-red-100">
-              {formatCurrency(expenses)}
+              {balanceVisible ? formatCurrency(expenses) : '••••••'}
             </div>
             <div className="flex items-center gap-2">
               <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
@@ -222,7 +248,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
                 ></div>
               </div>
               <p style={{ fontSize: '11px' }} className="text-purple-600 dark:text-purple-400">
-                {formatCurrency(currentSavings)} of {formatCurrency(savingsGoal)}
+                {balanceVisible ? `${formatCurrency(currentSavings)} of ${formatCurrency(savingsGoal)}` : '••••••'}
               </p>
             </div>
           </CardContent>
@@ -264,7 +290,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
                     ? "text-emerald-900 dark:text-emerald-100"
                     : "text-orange-900 dark:text-orange-100"
                 )}>
-                  {formatCurrency(Math.abs(netBalance))}
+                  {balanceVisible ? formatCurrency(Math.abs(netBalance)) : '••••••'}
                 </p>
               </div>
             </div>
@@ -273,7 +299,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
                 {netBalance >= 0 ? 'Great job on saving!' : 'Consider reducing expenses'}
               </p>
               <p style={{ fontSize: '11px' }} className="text-muted-foreground">
-                Income: {formatCurrency(income)} • Expenses: {formatCurrency(expenses)}
+                {balanceVisible ? `Income: ${formatCurrency(income)} • Expenses: ${formatCurrency(expenses)}` : '••••••'}
               </p>
             </div>
           </div>
@@ -360,7 +386,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
                       : 'text-red-600 dark:text-red-400'
                   )} style={{ fontSize: '14px', fontWeight: '600' }}>
                     {transaction.type === 'income' ? '+' : ''}
-                    {formatCurrency(Math.abs(transaction.amount))}
+                     {balanceVisible ? formatCurrency(Math.abs(transaction.amount)) : '••••••'}
                   </p>
                   <div className="flex items-center gap-1 text-muted-foreground">
                     <Clock className="w-3 h-3" />
@@ -395,7 +421,7 @@ export function DashboardPage({ onNavigate, viewMode, user, familyMembers }) {
               {Object.entries(budgetOverview).map(([cat, spent]) => (
                 <div key={cat} className="flex justify-between items-center">
                   <span className="text-foreground text-sm font-medium">{cat}</span>
-                  <span className="text-muted-foreground text-sm">{formatCurrency(spent)}</span>
+                  <span className="text-muted-foreground text-sm">{balanceVisible ? formatCurrency(spent) : '••••••'}</span>
                 </div>
               ))}
             </CardContent>

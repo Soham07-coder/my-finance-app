@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import axios from 'axios';
-import { Search, Filter, Plus, ArrowUpRight, ArrowDownRight, SlidersHorizontal, MapPin, Clock, Download, Upload, AlertCircle } from 'lucide-react';
+import { Search, Filter, Plus, ArrowUpRight, ArrowDownRight, SlidersHorizontal, MapPin, Clock, Download, Upload, AlertCircle, Info } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
 import { Input } from './ui/input.jsx';
@@ -17,11 +17,42 @@ const paymentMethods = [
   { id: 'auto_debit', name: 'Auto Debit', description: 'Recurring payments', icon: '🔄' },
 ];
 
+// A simple, self-hiding alert component
+const ViewModeAlert = ({ message }) => {
+  if (!message) return null;
+  return (
+    <>
+      <style>
+        {`
+          @keyframes fade-in-down-alert {
+            0% {
+              opacity: 0;
+              transform: translate(-50%, -20px);
+            }
+            100% {
+              opacity: 1;
+              transform: translate(-50%, 0);
+            }
+          }
+          .animate-fade-in-down-alert {
+            animation: fade-in-down-alert 0.5s ease-out forwards;
+          }
+        `}
+      </style>
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-background text-foreground border shadow-lg rounded-full px-6 py-3 flex items-center gap-2 animate-fade-in-down-alert">
+        <Info className="w-5 h-5 text-blue-500" />
+        <span className="text-sm font-medium">{message}</span>
+      </div>
+    </>
+  );
+};
+
 export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
   const [transactions, setTransactions] = useState([]);
   const [fetchedCategories, setFetchedCategories] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [alertMessage, setAlertMessage] = useState('');
 
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('all');
@@ -31,6 +62,20 @@ export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
   const [sortBy, setSortBy] = useState('date-desc');
   const [dateRange, setDateRange] = useState('all');
   const [showFilters, setShowFilters] = useState(false);
+  
+  // Effect for showing view mode switch alert
+  useEffect(() => {
+    if (viewMode) {
+      // Don't show the alert on initial load if viewMode is 'all'
+      if(viewMode !== 'all') {
+        setAlertMessage(`Switched to ${viewMode} view`);
+        const timer = setTimeout(() => {
+          setAlertMessage('');
+        }, 2500); // Alert disappears after 2.5 seconds
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [viewMode]);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -48,12 +93,18 @@ export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
         const categoriesRes = await axios.get('http://localhost:5000/api/categories', config);
         setFetchedCategories(categoriesRes.data);
         
-        // Fetch ALL transactions from the combined endpoint
-        const endpoint = '/api/transactions/all';
+        // Determine the endpoint based on the viewMode prop
+        let endpoint;
+        if (viewMode === 'personal') {
+          endpoint = '/api/transactions/personal';
+        } else if (viewMode === 'family') {
+          endpoint = '/api/transactions/family';
+        } else {
+          endpoint = '/api/transactions/all';
+        }
+        
         const transactionsRes = await axios.get(`http://localhost:5000${endpoint}`, config);
         
-        console.log('Data received from backend:', transactionsRes.data);
-
         const categoriesMap = new Map(categoriesRes.data.map(c => [c.name, c.icon]));
         const fetchedTransactions = transactionsRes.data.map(t => ({
           ...t,
@@ -72,13 +123,14 @@ export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
     };
 
     fetchTransactions();
-  }, [viewMode, user]);
+  }, [viewMode]);
 
   const filteredTransactions = useMemo(() => {
     return transactions
       .filter(transaction => {
+        // Explicitly filter by viewMode on the client-side for robustness.
+        // This ensures that even if the API returns mixed data, the UI only shows what's relevant.
         const isFamilyTransaction = !!transaction.familyId;
-        
         if (viewMode === 'personal' && isFamilyTransaction) {
             return false;
         }
@@ -116,6 +168,8 @@ export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
             case 'year':
               const yearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
               matchesDate = transactionDate >= yearAgo;
+              break;
+            default:
               break;
           }
         }
@@ -171,6 +225,7 @@ export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      <ViewModeAlert message={alertMessage} />
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">

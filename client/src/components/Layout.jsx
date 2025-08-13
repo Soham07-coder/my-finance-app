@@ -80,7 +80,7 @@ export function Layout({
       }
     };
     fetchCurrentUser();
-  }, []);
+  }, [onLogout]);
 
 
   useEffect(() => {
@@ -186,7 +186,7 @@ export function Layout({
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (alertsRef.current && !alertsRef.current.contains(event.target)) {
-        setAlertsOpen(false);
+        // Assuming you have a state for alerts visibility, e.g., setAlertsOpen(false)
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -243,6 +243,8 @@ export function Layout({
             e.preventDefault();
             onNavigate('add-transaction');
             break;
+          default:
+            break;
         }
       }
     };
@@ -256,6 +258,19 @@ export function Layout({
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Adding CSS animations for page transitions */}
+      <style>
+        {`
+          @keyframes content-fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+          }
+          .animate-content-fade-in {
+            animation: content-fade-in 0.4s ease-out forwards;
+          }
+        `}
+      </style>
+
       {/* Sidebar */}
       <aside className={cn(
         "fixed inset-y-0 left-0 z-50 w-72 bg-card border-r border-border",
@@ -367,30 +382,33 @@ export function Layout({
             })}
           </nav>
 
-          {/* User Profile */}
-          <div className="p-4 border-t border-border bg-gradient-to-r from-gray-50 to-gray-100 dark:from-gray-900/20 dark:to-gray-800/20">
-            <div className="flex items-center gap-3">
-              <Avatar className="w-10 h-10 ring-2 ring-border shadow-md">
-                <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
-                  {userInitials}
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium truncate">
-                  {user?.username || ''}
-                </p>
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-muted-foreground truncate">
-                    {user?.role || ''}
-                  </p>
-                  {user?.pro && (
-                    <Badge variant="outline" className="px-1.5 py-0 text-[9px]">
-                      Pro
-                    </Badge>
-                  )}
+          {/* User Profile - Enhanced Styling */}
+          <div className="p-4 border-t border-border bg-muted/30 hover:bg-muted/60 transition-colors duration-300">
+             <div className="flex items-center gap-3 group">
+                <div className="relative">
+                    <Avatar className="w-10 h-10 ring-2 ring-border shadow-md group-hover:ring-primary transition-all duration-300">
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
+                        {userInitials}
+                        </AvatarFallback>
+                    </Avatar>
+                    <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background bg-green-500 animate-pulse"></div>
                 </div>
-              </div>
-            </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors">
+                        {user?.username || ''}
+                    </p>
+                    <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground truncate">
+                        {user?.role || 'Member'}
+                        </p>
+                        {user?.pro && (
+                        <Badge variant="outline" className="px-1.5 py-0 text-[9px] border-yellow-500 text-yellow-600">
+                            Pro
+                        </Badge>
+                        )}
+                    </div>
+                </div>
+             </div>
           </div>
         </div>
       </aside>
@@ -597,7 +615,8 @@ export function Layout({
 
         {/* Page Content */}
         <main className="flex-1 p-4 lg:p-6">
-          <div className="max-w-7xl mx-auto">
+          {/* Use a key to re-trigger animations on page change */}
+          <div key={currentPage} className="max-w-7xl mx-auto animate-content-fade-in">
             {children}
           </div>
         </main>

@@ -91,22 +91,32 @@ router.delete('/:id', async (req, res) => {
         if (category.isDefault) {
             return res.status(403).json({ msg: 'Cannot delete a default category.' });
         }
-        // Check if user has permission to delete (either created by user or is a family admin for family category)
-        // This logic might need refinement based on your exact family roles and permissions
-        if (category.userId !== userId && !(category.familyId && userDoc.data().members[userId] === 'admin')) { // Simplified check, assuming userDoc is available
-             // To make this check more robust, you might need to fetch the user's family role here
-             // For now, it checks if the category belongs to the user OR if it's a family category (and implicitly assumes admin can delete)
-             // A more robust check would involve fetching the user's role in the family
-             const userDoc = await db.collection('users').doc(userId).get();
-             const userFamilyId = userDoc.data()?.familyId;
-             const familyDoc = userFamilyId ? await db.collection('families').doc(userFamilyId).get() : null;
-             const userRole = familyDoc?.data()?.members[userId];
+        
+        // Authorization Check
+        let isAuthorized = false;
+        // Check if it's a personal category owned by the user
+        if (category.userId === userId) {
+            isAuthorized = true;
+        } 
+        // Check if it's a family category and the user is an admin of that family
+        else if (category.familyId) {
+            const userDoc = await db.collection('users').doc(userId).get();
+            const userFamilyId = userDoc.data()?.familyId;
 
-             if (category.userId !== userId && !(category.familyId && userRole === 'admin')) {
-                return res.status(403).json({ msg: 'Not authorized to delete this category.' });
-             }
+            if (userFamilyId && userFamilyId === category.familyId) {
+                const familyDoc = await db.collection('families').doc(userFamilyId).get();
+                if (familyDoc.exists) {
+                    const userRole = familyDoc.data().members[userId];
+                    if (userRole === 'admin') {
+                        isAuthorized = true;
+                    }
+                }
+            }
         }
 
+        if (!isAuthorized) {
+            return res.status(403).json({ msg: 'Not authorized to delete this category.' });
+        }
 
         await categoryRef.delete();
         res.json({ msg: 'Category removed.' });
@@ -115,5 +125,4 @@ router.delete('/:id', async (req, res) => {
         res.status(500).send('Server Error');
     }
 });
-
 module.exports = router;

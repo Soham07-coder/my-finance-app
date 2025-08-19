@@ -153,6 +153,72 @@ router.post('/', async (req, res) => {
     }
 });
 
+// @route   POST /api/transactions/transfer
+// @desc    Transfers money from personal to family account
+router.post('/transfer', async (req, res) => {
+    const { amount, notes, date } = req.body;
+    const userId = req.user.uid;
+
+    if (!amount || amount <= 0) {
+        return res.status(400).json({ msg: 'Invalid transfer amount.' });
+    }
+
+    try {
+        const userRef = db.collection('users').doc(userId);
+        const userDoc = await userRef.get();
+        if (!userDoc.exists) {
+            return res.status(404).json({ msg: 'User not found.' });
+        }
+        const userData = userDoc.data();
+        const familyId = userData?.familyId;
+
+        if (!familyId) {
+            return res.status(400).json({ msg: 'You must be in a family to transfer funds.' });
+        }
+
+        const batch = db.batch();
+        const transactionsRef = db.collection('transactions');
+
+        // 1. Create personal expense
+        const expenseRef = transactionsRef.doc();
+        batch.set(expenseRef, {
+            userId,
+            familyId: null,
+            type: 'expense',
+            amount: amount,
+            category: 'Transfer',
+            description: `Transfer to Family Account`,
+            notes: notes || 'Personal to Family transfer',
+            date: new Date(date),
+            isPersonal: true,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        // 2. Create family income
+        const incomeRef = transactionsRef.doc();
+        batch.set(incomeRef, {
+            userId, // Keep track of who initiated the transfer
+            familyId,
+            type: 'income',
+            amount: amount,
+            category: 'Transfer',
+            description: `Transfer from ${userData.username}`,
+            notes: notes || 'Personal to Family transfer',
+            date: new Date(date),
+            isPersonal: false,
+            createdAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+
+        await batch.commit();
+        res.status(201).json({ msg: 'Transfer successful.' });
+
+    } catch (err) {
+        console.error('Transfer failed:', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+
 // @route   PUT /api/transactions/:id
 router.put('/:id', async (req, res) => {
     const { id } = req.params;

@@ -237,14 +237,6 @@ export function TransactionsPage({ onNavigate, viewMode = 'all', user }) {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="gap-2 h-11 px-4 hover:bg-accent/80"
-            style={{ fontSize: '12px', fontWeight: '500' }}
-          >
-            <Download className="w-4 h-4" />
-            Export
-          </Button>
           <Button 
             onClick={() => onNavigate('add-transaction')} 
             className={cn(

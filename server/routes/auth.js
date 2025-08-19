@@ -46,8 +46,20 @@ router.post('/verify-token', async (req, res) => {
             await userDocRef.update({
                 lastLoginAt: admin.firestore.FieldValue.serverTimestamp()
             });
-            // Return existing user data, ensuring it's nested under 'user' for consistency
-            return res.json({ id: uid, user: userDoc.data() });
+
+            // Get the existing user's data
+            const existingUserData = userDoc.data();
+
+            // **FIX**: Ensure the familyId is always included in the response,
+            // defaulting to null if it's not present in the database record.
+            // This makes the user object consistent for the frontend.
+            const userPayload = {
+                ...existingUserData,
+                familyId: existingUserData.familyId || null,
+            };
+
+            // Return existing user data, now guaranteed to have a familyId field
+            return res.json({ id: uid, user: userPayload });
         }
 
     } catch (err) {

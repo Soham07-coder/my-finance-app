@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, Bell, DollarSign, Receipt, Users, BarChart3, Menu, X, Home, ChevronRight, LogOut, UserCircle, Settings, TrendingUp } from 'lucide-react';
+import { Search, Bell, DollarSign, Receipt, Users, BarChart3, Menu, X, Home, ChevronRight, LogOut, UserCircle, Settings, TrendingUp, Info } from 'lucide-react';
 import { Button } from './ui/button.jsx';
 import { Input } from './ui/input.jsx';
 import { Badge } from './ui/badge.jsx';
@@ -46,6 +46,37 @@ const navItems = [
   },
 ];
 
+
+// A simple, self-hiding alert component
+const ViewModeAlert = ({ message }) => {
+  if (!message) return null;
+  return (
+    <>
+      <style>
+        {`
+          @keyframes fade-in-down-alert {
+            0% {
+              opacity: 0;
+              transform: translate(-50%, -20px);
+            }
+            100% {
+              opacity: 1;
+              transform: translate(-50%, 0);
+            }
+          }
+          .animate-fade-in-down-alert {
+            animation: fade-in-down-alert 0.5s ease-out forwards;
+          }
+        `}
+      </style>
+      <div className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-background text-foreground border shadow-lg rounded-full px-6 py-3 flex items-center gap-2 animate-fade-in-down-alert">
+        <Info className="w-5 h-5 text-blue-500" />
+        <span className="text-sm font-medium">{message}</span>
+      </div>
+    </>
+  );
+};
+
 export function Layout({
   children,
   currentPage,
@@ -59,12 +90,16 @@ export function Layout({
   const [searchQuery, setSearchQuery] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [user, setUser] = useState(null);
+  const [isUserLoading, setIsUserLoading] = useState(true); // New state for user loading
   const [balance, setBalance] = useState(0);
   const [thisMonth, setThisMonth] = useState(0);
-  const alertsRef = useRef(null);
+  const [alertMessage, setAlertMessage] = useState('');
+  const isFirstRun = useRef(true);
+
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
+      setIsUserLoading(true);
       const token = localStorage.getItem('token');
       if (token) {
         try {
@@ -74,9 +109,12 @@ export function Layout({
         } catch (error) {
           console.error('Failed to fetch user', error);
           onLogout();
+        } finally {
+          setIsUserLoading(false);
         }
       } else {
         onLogout();
+        setIsUserLoading(false);
       }
     };
     fetchCurrentUser();
@@ -102,96 +140,71 @@ export function Layout({
   }, []);
 
 
-  // NEW: Fetch personal financial data when viewMode changes to 'personal'
+  // Fetch financial stats for the sidebar based on viewMode
   useEffect(() => {
-    if (viewMode === 'personal' && user) {
-      const fetchPersonalStats = async () => {
-        const token = localStorage.getItem('token');
-        try {
-          const config = { headers: { 'Authorization': `Bearer ${token}` } };
-          const transactionsRes = await axios.get('http://localhost:5000/api/transactions/personal', config);
-          const transactions = transactionsRes.data;
+    const fetchStats = async () => {
+      if (!user) return;
 
-          let currentBalance = 0;
-          let monthlySpending = 0;
-          const now = new Date();
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-
-          transactions.forEach(t => {
-            const transactionDate = new Date(t.date);
-            if (t.type === 'income') {
-              currentBalance += t.amount;
-            } else {
-              currentBalance -= t.amount;
-              if (transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear) {
-                monthlySpending += t.amount;
-              }
-            }
-          });
-
-          setBalance(currentBalance);
-          setThisMonth(monthlySpending);
-        } catch (error) {
-          console.error('Failed to fetch personal stats', error);
+      const token = localStorage.getItem('token');
+      const config = { headers: { 'Authorization': `Bearer ${token}` } };
+      const endpoint = viewMode === 'family' ? 'family' : 'personal';
+      
+      if (endpoint === 'family' && !user.familyId) {
           setBalance(0);
           setThisMonth(0);
-        }
-      };
-      fetchPersonalStats();
-    }
-  }, [viewMode, user]);
+          return;
+      }
+      
+      try {
+        const res = await axios.get(`http://localhost:5000/api/transactions/${endpoint}`, config);
+        const transactions = res.data;
 
-  // NEW: Fetch family financial data when viewMode changes to 'family'
-  useEffect(() => {
-    if (viewMode === 'family' && user?.familyId) {
-      const fetchFamilyStats = async () => {
-        const token = localStorage.getItem('token');
-        try {
-          const config = { headers: { 'Authorization': `Bearer ${token}` } };
-          const transactionsRes = await axios.get('http://localhost:5000/api/transactions/family', config);
-          const transactions = transactionsRes.data;
+        let currentBalance = 0;
+        let monthlySpending = 0;
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
 
-          let currentBalance = 0;
-          let monthlySpending = 0;
-          const now = new Date();
-          const currentMonth = now.getMonth();
-          const currentYear = now.getFullYear();
-
-          transactions.forEach(t => {
-            const transactionDate = new Date(t.date);
-            if (t.type === 'income') {
-              currentBalance += t.amount;
-            } else {
-              currentBalance -= t.amount;
-              if (transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear) {
-                monthlySpending += t.amount;
-              }
+        transactions.forEach(t => {
+          const transactionDate = new Date(t.date);
+          if (t.type === 'income') {
+            currentBalance += t.amount;
+          } else {
+            currentBalance -= t.amount;
+            if (transactionDate.getMonth() === currentMonth && transactionDate.getFullYear() === currentYear) {
+              monthlySpending += t.amount;
             }
-          });
+          }
+        });
 
-          setBalance(currentBalance);
-          setThisMonth(monthlySpending);
-        } catch (error) {
-          console.error('Failed to fetch family stats', error);
-          setBalance(0);
-          setThisMonth(0);
-        }
-      };
-      fetchFamilyStats();
-    }
-  }, [viewMode, user]);
-
-
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (alertsRef.current && !alertsRef.current.contains(event.target)) {
-        // Assuming you have a state for alerts visibility, e.g., setAlertsOpen(false)
+        setBalance(currentBalance);
+        setThisMonth(monthlySpending);
+      } catch (error) {
+        console.error(`Failed to fetch ${endpoint} stats`, error);
+        setBalance(0);
+        setThisMonth(0);
       }
     };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+    
+    fetchStats();
+  }, [viewMode, user]);
+
+  // Effect to show alert when viewMode changes
+  useEffect(() => {
+    if (isFirstRun.current) {
+      isFirstRun.current = false;
+      return;
+    }
+
+    const mode = viewMode === 'personal' ? 'Personal' : 'Family';
+    setAlertMessage(`Switched to ${mode} mode`);
+    const timer = setTimeout(() => {
+      setAlertMessage('');
+    }, 2500);
+    
+    return () => clearTimeout(timer);
+  }, [viewMode]);
+
 
   const unreadNotifications = notifications.filter(n => n.unread).length;
 
@@ -258,6 +271,7 @@ export function Layout({
 
   return (
     <div className="min-h-screen bg-background">
+      <ViewModeAlert message={alertMessage} />
       {/* Adding CSS animations for page transitions */}
       <style>
         {`
@@ -276,140 +290,137 @@ export function Layout({
         "fixed inset-y-0 left-0 z-50 w-72 bg-card border-r border-border",
         "transform transition-transform duration-300 ease-out lg:translate-x-0",
         sidebarOpen ? 'translate-x-0' : '-translate-x-full',
-        "shadow-xl lg:shadow-none custom-scrollbar"
+        "shadow-xl lg:shadow-none flex flex-col"
       )}>
-        <div className="flex flex-col h-full">
-          {/* Brand Header */}
-          <div className={cn(
-            "flex items-center justify-between h-16 px-6 border-b border-border",
-            "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20"
-          )}>
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl",
-                "flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-transform duration-200"
-              )}>
-                <DollarSign className="w-5 h-5 text-white" />
+        {/* Brand Header */}
+        <div className={cn(
+          "flex items-center justify-between h-16 px-6 border-b border-border shrink-0",
+          "bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20"
+        )}>
+          <div className="flex items-center gap-3">
+            <div className={cn(
+              "w-9 h-9 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl",
+              "flex items-center justify-center shadow-lg transform rotate-3 hover:rotate-0 transition-transform duration-200"
+            )}>
+              <DollarSign className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h1 style={{ fontSize: '16px', fontWeight: '600', lineHeight: '1.3' }} className="text-foreground">
+                FamilyFin
+              </h1>
+              <p style={{ fontSize: '11px', lineHeight: '1.5' }} className="text-muted-foreground">
+                Finance Manager
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="lg:hidden h-8 w-8 p-0"
+            onClick={() => setSidebarOpen(false)}
+            style={{ fontSize: '12px' }}
+          >
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+
+        {/* Quick Stats */}
+        <div className="px-4 py-4 border-b border-border bg-muted/20 shrink-0">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg">
+              <div className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">
+                ₹{balance.toLocaleString()}
               </div>
-              <div>
-                <h1 style={{ fontSize: '16px', fontWeight: '600', lineHeight: '1.3' }} className="text-foreground">
-                  FamilyFin
-                </h1>
-                <p style={{ fontSize: '11px', lineHeight: '1.5' }} className="text-muted-foreground">
-                  Finance Manager
-                </p>
+              <div className="text-xs text-emerald-700 dark:text-emerald-500">
+                Balance
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="lg:hidden h-8 w-8 p-0"
-              onClick={() => setSidebarOpen(false)}
-              style={{ fontSize: '12px' }}
-            >
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-
-          {/* Quick Stats (dynamic, no mock) */}
-          <div className="px-4 py-4 border-b border-border bg-muted/20">
-            <div className="grid grid-cols-2 gap-3">
-              <div className="text-center p-3 bg-emerald-50 dark:bg-emerald-950/20 rounded-lg">
-                <div className="font-bold text-emerald-600 dark:text-emerald-400 text-lg">
-                  ₹{balance.toLocaleString()}
-                </div>
-                <div className="text-xs text-emerald-700 dark:text-emerald-500">
-                  Balance
-                </div>
+            <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+              <div className="font-bold text-blue-600 dark:text-blue-400 text-lg">
+                ₹{thisMonth.toLocaleString()}
               </div>
-              <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                <div className="font-bold text-blue-600 dark:text-blue-400 text-lg">
-                  ₹{thisMonth.toLocaleString()}
-                </div>
-                <div className="text-xs text-blue-700 dark:text-blue-500">
-                  This Month
-                </div>
+              <div className="text-xs text-blue-700 dark:text-blue-500">
+                This Month
               </div>
             </div>
           </div>
+        </div>
 
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentPage === item.id;
-              return (
-                <button
-                  key={item.id}
-                  onClick={() => onNavigate(item.id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200",
-                    "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 group",
-                    isActive
-                      ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-[1.02]"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground hover:scale-[1.01]"
-                  )}
-                  style={{ fontSize: '12px', lineHeight: '1.5' }}
-                >
-                  <div className={cn(
-                    "p-2 rounded-lg transition-all duration-200",
-                    isActive
-                      ? "bg-white/20 text-white shadow-md"
-                      : "bg-muted/50 text-muted-foreground group-hover:bg-accent group-hover:text-foreground"
-                  )}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                  <div className="flex-1 text-left">
-                    <div style={{ fontSize: '12px', fontWeight: '500', lineHeight: '1.3' }}>
-                      {item.label}
-                    </div>
-                    <div style={{ fontSize: '10px', lineHeight: '1.5' }} className={cn(
-                      "opacity-70",
-                      isActive ? "text-white/80" : "text-muted-foreground"
-                    )}>
-                      {item.description}
-                    </div>
+        {/* Navigation */}
+        <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto custom-scrollbar">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => onNavigate(item.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200",
+                  "focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 group",
+                  isActive
+                    ? "bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg transform scale-[1.02]"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground hover:scale-[1.01]"
+                )}
+                style={{ fontSize: '12px', lineHeight: '1.5' }}
+              >
+                <div className={cn(
+                  "p-2 rounded-lg transition-all duration-200",
+                  isActive
+                    ? "bg-white/20 text-white shadow-md"
+                    : "bg-muted text-muted-foreground group-hover:bg-accent group-hover:text-foreground"
+                )}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 text-left">
+                  <div style={{ fontSize: '12px', fontWeight: '500', lineHeight: '1.3' }}>
+                    {item.label}
                   </div>
                   <div style={{ fontSize: '10px', lineHeight: '1.5' }} className={cn(
-                    "opacity-50 font-mono",
-                    isActive ? "text-white/60" : "text-muted-foreground"
+                    "opacity-70",
+                    isActive ? "text-white/80" : "text-muted-foreground"
                   )}>
-                    {item.shortcut}
+                    {item.description}
                   </div>
-                </button>
-              );
-            })}
-          </nav>
+                </div>
+                <div style={{ fontSize: '10px', lineHeight: '1.5' }} className={cn(
+                  "opacity-50 font-mono",
+                  isActive ? "text-white/60" : "text-muted-foreground"
+                )}>
+                  {item.shortcut}
+                </div>
+              </button>
+            );
+          })}
+        </nav>
 
-          {/* User Profile - Enhanced Styling */}
-          <div className="p-4 border-t border-border bg-muted/30 hover:bg-muted/60 transition-colors duration-300">
-             <div className="flex items-center gap-3 group">
-                <div className="relative">
-                    <Avatar className="w-10 h-10 ring-2 ring-border shadow-md group-hover:ring-primary transition-all duration-300">
-                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
-                        {userInitials}
-                        </AvatarFallback>
-                    </Avatar>
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background bg-green-500 animate-pulse"></div>
-                </div>
-                <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors">
-                        {user?.username || ''}
-                    </p>
-                    <div className="flex items-center gap-2">
-                        <p className="text-xs text-muted-foreground truncate">
-                        {user?.role || 'Member'}
-                        </p>
-                        {user?.pro && (
-                        <Badge variant="outline" className="px-1.5 py-0 text-[9px] border-yellow-500 text-yellow-600">
-                            Pro
-                        </Badge>
-                        )}
-                    </div>
-                </div>
-             </div>
-          </div>
+        {/* User Profile */}
+        <div className="p-4 border-t border-border bg-muted/30 hover:bg-muted/60 transition-colors duration-300 shrink-0">
+           <div className="flex items-center gap-3 group">
+              <div className="relative">
+                  <Avatar className="w-10 h-10 ring-2 ring-border shadow-md group-hover:ring-primary transition-all duration-300">
+                      <AvatarFallback className="bg-gradient-to-br from-purple-500 to-pink-500 text-white font-medium">
+                      {userInitials}
+                      </AvatarFallback>
+                  </Avatar>
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-background bg-green-500 animate-pulse"></div>
+              </div>
+              <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate text-foreground group-hover:text-primary transition-colors">
+                      {user?.username || ''}
+                  </p>
+                  <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground truncate">
+                      {user?.role || 'Member'}
+                      </p>
+                      {user?.pro && (
+                      <Badge variant="outline" className="px-1.5 py-0 text-[9px] border-yellow-500 text-yellow-600">
+                          Pro
+                      </Badge>
+                      )}
+                  </div>
+              </div>
+           </div>
         </div>
       </aside>
 
@@ -615,10 +626,15 @@ export function Layout({
 
         {/* Page Content */}
         <main className="flex-1 p-4 lg:p-6">
-          {/* Use a key to re-trigger animations on page change */}
-          <div key={currentPage} className="max-w-7xl mx-auto animate-content-fade-in">
-            {children}
-          </div>
+          {isUserLoading ? (
+            <div className="flex items-center justify-center h-full pt-32">
+              <div className="w-12 h-12 border-4 border-t-4 border-primary rounded-full animate-spin"></div>
+            </div>
+          ) : (
+            <div key={currentPage} className="max-w-7xl mx-auto animate-content-fade-in">
+              {React.cloneElement(children, { user: user, viewMode: viewMode })}
+            </div>
+          )}
         </main>
       </div>
 

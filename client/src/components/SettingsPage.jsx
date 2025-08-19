@@ -29,13 +29,9 @@ import { cn } from '../lib/utils.js';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from './ui/dropdown-menu.jsx';
 
 // Reusable Confirmation Modal Component
-const ConfirmationModal = ({ onClose, onConfirm, title, message }) => {
-    const [isProcessing, setIsProcessing] = useState(false);
-    const handleConfirm = async () => {
-        setIsProcessing(true);
-        await onConfirm();
-        setIsProcessing(false);
-    };
+const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, isProcessing }) => {
+    if (!isOpen) return null;
+    
     return (
         <div className={cn(
             "fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm",
@@ -46,7 +42,7 @@ const ConfirmationModal = ({ onClose, onConfirm, title, message }) => {
                 <p className="text-muted-foreground">{message}</p>
                 <div className="flex justify-end gap-3">
                     <Button variant="outline" onClick={onClose} disabled={isProcessing}>Cancel</Button>
-                    <Button variant="destructive" onClick={handleConfirm} disabled={isProcessing}>
+                    <Button variant="destructive" onClick={onConfirm} disabled={isProcessing}>
                         {isProcessing ? 'Processing...' : 'Confirm'}
                     </Button>
                 </div>
@@ -214,6 +210,9 @@ const CategoryManager = ({ user }) => {
     const [newCategory, setNewCategory] = useState({ name: '', type: 'expense' });
     const [error, setError] = useState('');
     const [isLoading, setIsLoading] = useState(false);
+    const [isDeleteProcessing, setIsDeleteProcessing] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [categoryToDelete, setCategoryToDelete] = useState(null);
     const fetchCategories = async () => {
         setIsLoading(true);
         try {
@@ -249,87 +248,107 @@ const CategoryManager = ({ user }) => {
             setError(err.response?.data?.msg || 'Failed to add category.');
         }
     };
-    const handleDeleteCategory = async (id) => {
-        if (!window.confirm('Are you sure you want to delete this category? This cannot be undone.')) return;
+    const confirmDeleteCategory = (id) => {
+        setCategoryToDelete(id);
+        setShowDeleteConfirm(true);
+    };
+    const handleDeleteCategory = async () => {
+        if (!categoryToDelete) return;
+        setIsDeleteProcessing(true);
+        setError('');
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { Authorization: `Bearer ${token}` } };
-            await axios.delete(`http://localhost:5000/api/categories/${id}`, config);
+            await axios.delete(`http://localhost:5000/api/categories/${categoryToDelete}`, config);
             fetchCategories();
         } catch (err) {
-            alert(err.response?.data?.msg || 'Failed to delete category.');
+            setError(err.response?.data?.msg || 'Failed to delete category.');
+        } finally {
+            setIsDeleteProcessing(false);
+            setShowDeleteConfirm(false);
+            setCategoryToDelete(null);
         }
     };
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                    <Users className="h-5 w-5" />
-                    <span>Manage Categories</span>
-                </CardTitle>
-            </CardHeader>
-            <CardContent>
-                <form onSubmit={handleAddCategory} className="flex flex-col space-y-3 mb-4">
-                    <Input
-                        type="text"
-                        placeholder="New category name"
-                        value={newCategory.name}
-                        onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
-                        required
-                    />
-                    <Select
-                        value={newCategory.type}
-                        onValueChange={(value) => setNewCategory({ ...newCategory, type: value })}
-                    >
-                        <SelectTrigger>
-                            <SelectValue placeholder="Select category type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="expense">Expense</SelectItem>
-                            <SelectItem value="income">Income</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    <Button type="submit" className="inline-flex items-center gap-2 justify-center">
-                        <FiPlus />
-                        Add Category
-                    </Button>
-                    {error && <p className="text-sm text-red-600">{error}</p>}
-                </form>
-                {isLoading ? (
-                    <p>Loading categories...</p>
-                ) : (
-                    <ul className="divide-y divide-border border rounded-md overflow-hidden">
-                        {categories.map((cat) => (
-                            <li key={cat.id} className="flex items-center justify-between p-3">
-                                <div>
-                                    <span
-                                        className={cn(
-                                            'px-2 py-0.5 rounded text-xs font-semibold',
-                                            cat.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                                        )}
-                                    >
-                                        {cat.type}
-                                    </span>
-                                    <span className="ml-3 text-sm font-medium">{cat.name}</span>
-                                </div>
-                                {!cat.isDefault ? (
-                                    <button
-                                        onClick={() => handleDeleteCategory(cat.id)}
-                                        className="text-red-500 hover:text-red-700 p-1"
-                                        title="Delete Category"
-                                        type="button"
-                                    >
-                                        <FiTrash2 size={16} />
-                                    </button>
-                                ) : (
-                                    <span className="text-xs text-muted-foreground italic">Default</span>
-                                )}
-                            </li>
-                        ))}
-                    </ul>
-                )}
-            </CardContent>
-        </Card>
+        <>
+            <ConfirmationModal
+                isOpen={showDeleteConfirm}
+                onClose={() => setShowDeleteConfirm(false)}
+                onConfirm={handleDeleteCategory}
+                title="Delete Category"
+                message="Are you sure you want to delete this category? This action cannot be undone."
+                isProcessing={isDeleteProcessing}
+            />
+            <Card>
+                <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                        <Users className="h-5 w-5" />
+                        <span>Manage Categories</span>
+                    </CardTitle>
+                </CardHeader>
+                <CardContent>
+                    <form onSubmit={handleAddCategory} className="flex flex-col space-y-3 mb-4">
+                        <Input
+                            type="text"
+                            placeholder="New category name"
+                            value={newCategory.name}
+                            onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                            required
+                        />
+                        <Select
+                            value={newCategory.type}
+                            onValueChange={(value) => setNewCategory({ ...newCategory, type: value })}
+                        >
+                            <SelectTrigger>
+                                <SelectValue placeholder="Select category type" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="expense">Expense</SelectItem>
+                                <SelectItem value="income">Income</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button type="submit" className="inline-flex items-center gap-2 justify-center">
+                            <FiPlus />
+                            Add Category
+                        </Button>
+                        {error && <p className="text-sm text-red-600 flex items-center gap-2"><AlertCircle className="w-4 h-4" />{error}</p>}
+                    </form>
+                    {isLoading ? (
+                        <p>Loading categories...</p>
+                    ) : (
+                        <ul className="divide-y divide-border border rounded-md overflow-hidden">
+                            {categories.map((cat) => (
+                                <li key={cat.id} className="flex items-center justify-between p-3">
+                                    <div>
+                                        <span
+                                            className={cn(
+                                                'px-2 py-0.5 rounded text-xs font-semibold',
+                                                cat.type === 'income' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+                                            )}
+                                        >
+                                            {cat.type}
+                                        </span>
+                                        <span className="ml-3 text-sm font-medium">{cat.name}</span>
+                                    </div>
+                                    {!cat.isDefault ? (
+                                        <button
+                                            onClick={() => confirmDeleteCategory(cat.id)}
+                                            className="text-red-500 hover:text-red-700 p-1"
+                                            title="Delete Category"
+                                            type="button"
+                                        >
+                                            <FiTrash2 size={16} />
+                                        </button>
+                                    ) : (
+                                        <span className="text-xs text-muted-foreground italic">Default</span>
+                                    )}
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                </CardContent>
+            </Card>
+        </>
     );
 };
 
@@ -350,6 +369,8 @@ export function SettingsPage({ onLogout, onNavigate }) {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showLeaveFamilyModal, setShowLeaveFamilyModal] = useState(false);
     const [showDeleteAccountModal, setShowDeleteAccountModal] = useState(false);
+    const [isLeaveProcessing, setIsLeaveProcessing] = useState(false);
+    const [isDeleteAccProcessing, setIsDeleteAccProcessing] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -440,7 +461,8 @@ export function SettingsPage({ onLogout, onNavigate }) {
             setShowLeaveFamilyModal(false);
         }
     };
-    const handleAccountDeletion = async () => {
+     const handleAccountDeletion = async () => {
+        setIsDeleteAccProcessing(true);
         try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}` } };
@@ -451,6 +473,7 @@ export function SettingsPage({ onLogout, onNavigate }) {
             alert(error.response?.data?.msg || 'An error occurred while trying to delete your account.');
         } finally {
             setShowDeleteAccountModal(false);
+            setIsDeleteAccProcessing(false);
         }
     };
     const handleProfileSubmit = async () => {
@@ -818,18 +841,22 @@ export function SettingsPage({ onLogout, onNavigate }) {
             {showPasswordModal && <PasswordChangeModal onClose={() => setShowPasswordModal(false)} />}
             {showLeaveFamilyModal && (
                 <ConfirmationModal
+                    isOpen={showLeaveFamilyModal}
                     onClose={() => setShowLeaveFamilyModal(false)}
                     onConfirm={handleLeaveFamily}
                     title="Leave Family"
                     message="Are you sure you want to leave this family? This action cannot be undone."
+                    isProcessing={isLeaveProcessing}
                 />
             )}
             {showDeleteAccountModal && (
                 <ConfirmationModal
+                    isOpen={showDeleteAccountModal}
                     onClose={() => setShowDeleteAccountModal(false)}
                     onConfirm={handleAccountDeletion}
                     title="Delete Account"
                     message="Are you sure you want to permanently delete your account? This action cannot be undone."
+                    isProcessing={isDeleteAccProcessing}
                 />
             )}
         </div>

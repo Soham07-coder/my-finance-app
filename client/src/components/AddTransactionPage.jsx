@@ -1,7 +1,7 @@
 // src/pages/AddTransactionPage.jsx
 
 import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Save, MapPin, DollarSign, AlertCircle, Settings } from 'lucide-react';
+import { ArrowLeft, Save, MapPin, DollarSign, AlertCircle, Repeat, Tag } from 'lucide-react';
 import axios from 'axios';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card.jsx';
 import { Button } from './ui/button.jsx';
@@ -10,7 +10,6 @@ import { Label } from './ui/label.jsx';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select.jsx';
 import { paymentMethods } from '../lib/constants.js';
 import { cn } from '../lib/utils.js';
-import { useNavigate } from 'react-router-dom';
 
 const convertAmountToWords = (num) => {
   if (num === null || num === undefined || num === '') {
@@ -76,7 +75,8 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     isPersonal: viewMode === 'personal',
     notes: '',
     location: '',
-    date: new Date().toISOString().split('T')[0], // Set default date to today in YYYY-MM-DD format
+    eventTag: '', // New field for event tagging
+    date: new Date().toISOString().split('T')[0], // Set default date to today
   });
 
   const [errors, setErrors] = useState({});
@@ -84,19 +84,11 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
   const [categories, setCategories] = useState([]);
   const [locationLoading, setLocationLoading] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
   const [amountInWords, setAmountInWords] = useState('');
-  const [showViewModeAlert, setShowViewModeAlert] = useState(false);
 
-  // Sync isPersonal when viewMode updates and show alert
+  // Sync isPersonal when viewMode updates
   useEffect(() => {
     setFormData((prev) => ({ ...prev, isPersonal: viewMode === 'personal' }));
-    if (showViewModeAlert) {
-      const mode = viewMode === 'personal' ? 'Personal' : 'Family';
-      alert(`Switched to ${mode} mode.`);
-    }
-    // Set to true after the first render to enable subsequent alerts
-    setShowViewModeAlert(true);
   }, [viewMode]);
 
   useEffect(() => {
@@ -127,7 +119,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     fetchData();
   }, []);
 
-  // UseEffect to handle location detection for cash payments
+  // useEffect to handle location detection for cash payments
   useEffect(() => {
     if (formData.paymentMethod === 'cash' && navigator.geolocation) {
       setLocationLoading(true);
@@ -136,15 +128,11 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
       navigator.geolocation.getCurrentPosition(
         async (position) => {
           const { latitude, longitude } = position.coords;
-
           try {
             const token = localStorage.getItem('token');
             const config = { headers: { 'Authorization': `Bearer ${token}` } };
-
-            // Send coordinates to the backend to get location
             const res = await axios.post('http://localhost:5000/api/alerts/get-location', { latitude, longitude }, config);
             const currentLocation = res.data.location;
-
             setFormData(prev => ({ ...prev, location: currentLocation }));
           } catch (error) {
             console.error("Geocoding failed:", error);
@@ -160,7 +148,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
         },
         { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
       );
-    } else {
+    } else if (formData.paymentMethod !== 'cash') {
       setFormData(prev => ({ ...prev, location: '' }));
     }
   }, [formData.paymentMethod]);
@@ -170,13 +158,13 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     if (!formData.amount || parseFloat(formData.amount) <= 0) {
       newErrors.amount = 'Please enter a valid amount';
     }
-    if (!formData.description.trim()) {
+    if (formData.type !== 'transfer' && !formData.description.trim()) {
       newErrors.description = 'Description is required';
     }
-    if (!formData.categoryId) {
+    if (formData.type !== 'transfer' && !formData.categoryId) {
       newErrors.categoryId = 'Please select a category';
     }
-    if (!formData.paymentMethod) {
+    if (formData.type !== 'transfer' && !formData.paymentMethod) {
       newErrors.paymentMethod = 'Please select a payment method';
     }
     setError(null);
@@ -192,27 +180,34 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
     try {
       const token = localStorage.getItem('token');
       const config = { headers: { Authorization: `Bearer ${token}` } };
+      
+      if (formData.type === 'transfer') {
+        await axios.post('http://localhost:5000/api/transactions/transfer', {
+          amount: parseFloat(formData.amount),
+          notes: formData.notes,
+          date: new Date(formData.date).toISOString(),
+        }, config);
+      } else {
+        const userIdToSend = user?.uid || user?.id || null;
+        const familyIdToSend = formData.isPersonal ? null : (user?.familyId || null);
 
-      const userIdToSend = user?.uid || user?.id || null;
-      const familyIdToSend = formData.isPersonal ? null : (user?.familyId || null);
+        const transactionData = {
+          ...formData,
+          amount: parseFloat(formData.amount),
+          category: formData.categoryName,
+          userId: userIdToSend,
+          familyId: familyIdToSend,
+          date: new Date(formData.date).toISOString(),
+          isPersonal: !!formData.isPersonal,
+        };
 
-      const transactionData = {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        category: formData.categoryName,
-        userId: userIdToSend,
-        familyId: familyIdToSend,
-        date: new Date(formData.date).toISOString(),
-        isPersonal: !!formData.isPersonal,
-      };
+        if (transactionData.paymentMethod === 'cash') {
+          await axios.post('http://localhost:5000/api/alerts/cash-payment', { location: transactionData.location }, config);
+        }
 
-      console.log('Posting transactionData:', transactionData);
-
-      if (transactionData.paymentMethod === 'cash') {
-        await axios.post('http://localhost:5000/api/alerts/cash-payment', { location: transactionData.location }, config);
+        await axios.post('http://localhost:5000/api/transactions', transactionData, config);
       }
-
-      await axios.post('http://localhost:5000/api/transactions', transactionData, config);
+      
       onNavigate('transactions');
     } catch (err) {
       console.error(err);
@@ -276,7 +271,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
             Add Transaction
           </h1>
           <p style={{ fontSize: '14px', lineHeight: '1.5' }} className="text-muted-foreground">
-            Record a new {formData.type} transaction for your {viewMode} finances
+            Record a new {formData.type} for your {viewMode} finances
           </p>
         </div>
       </div>
@@ -309,7 +304,8 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
               {/* Transaction Type */}
               <div className="space-y-3">
                 <Label style={{ fontSize: '12px', fontWeight: '500' }}>Transaction Type</Label>
-                <div className="grid grid-cols-2 gap-3">
+                {/* MODIFIED: The grid is now always 3 columns to ensure the Transfer button is visible. */}
+                <div className={cn("grid gap-3 grid-cols-3")}>
                   <button
                     type="button"
                     onClick={() => handleTypeChange('expense')}
@@ -326,7 +322,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                       </div>
                       <div>
                         <p style={{ fontSize: '12px', fontWeight: '600' }} className="text-foreground">Expense</p>
-                        <p style={{ fontSize: '11px' }} className="text-muted-foreground">Money going out</p>
+                        <p style={{ fontSize: '11px' }} className="text-muted-foreground">Money out</p>
                       </div>
                     </div>
                   </button>
@@ -347,7 +343,29 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                       </div>
                       <div>
                         <p style={{ fontSize: '12px', fontWeight: '600' }} className="text-foreground">Income</p>
-                        <p style={{ fontSize: '11px' }} className="text-muted-foreground">Money coming in</p>
+                        <p style={{ fontSize: '11px' }} className="text-muted-foreground">Money in</p>
+                      </div>
+                    </div>
+                  </button>
+                  
+                  {/* MODIFIED: Removed the conditional rendering `{user?.familyId && ...}` to make the button always visible. */}
+                  <button
+                    type="button"
+                    onClick={() => handleTypeChange('transfer')}
+                    className={cn(
+                      "p-4 rounded-xl border-2 transition-all duration-200 text-left",
+                      formData.type === 'transfer'
+                        ? "border-blue-500 bg-blue-50 dark:bg-blue-950/20"
+                        : "border-border hover:border-blue-300 hover:bg-blue-50/50"
+                    )}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                        <Repeat className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p style={{ fontSize: '12px', fontWeight: '600' }} className="text-foreground">Transfer</p>
+                        <p style={{ fontSize: '11px' }} className="text-muted-foreground">To Family</p>
                       </div>
                     </div>
                   </button>
@@ -389,32 +407,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                   </p>
                 )}
               </div>
-
-              {/* Description */}
-              <div className="space-y-2">
-                <Label htmlFor="description" style={{ fontSize: '12px', fontWeight: '500' }}>
-                  Description
-                </Label>
-                <Input
-                  id="description"
-                  placeholder="What was this transaction for?"
-                  value={formData.description}
-                  onChange={(e) => handleInputChange('description', e.target.value)}
-                  className={cn(
-                    "h-12",
-                    errors.description && 'border-destructive focus-visible:ring-destructive/20'
-                  )}
-                  style={{ fontSize: '12px' }}
-                  required
-                />
-                {errors.description && (
-                  <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
-                    <span className="w-1 h-1 bg-destructive rounded-full"></span>
-                    {errors.description}
-                  </p>
-                )}
-              </div>
-
+              
               {/* Date */}
               <div className="space-y-2">
                 <Label htmlFor="date" style={{ fontSize: '12px', fontWeight: '500' }}>
@@ -431,107 +424,154 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                 />
               </div>
 
-              {/* Category */}
-              <div className="space-y-2">
-                <Label style={{ fontSize: '12px', fontWeight: '500' }}>Category</Label>
-                <Select
-                  value={formData.categoryId}
-                  onValueChange={(value) => handleInputChange('category', value)}
-                  required
-                >
-                  <SelectTrigger
-                    className={cn(
-                      "h-12",
-                      errors.categoryId && 'border-destructive focus-visible:ring-destructive/20'
-                    )}
+              {/* Fields for Income/Expense, hidden for Transfer */}
+              <div className={cn("space-y-6 transition-all duration-500", formData.type === 'transfer' ? 'max-h-0 opacity-0 overflow-hidden' : 'max-h-[1000px] opacity-100')}>
+                {/* Description */}
+                <div className="space-y-2">
+                  <Label htmlFor="description" style={{ fontSize: '12px', fontWeight: '500' }}>
+                    Description
+                  </Label>
+                  <Input
+                    id="description"
+                    placeholder="What was this transaction for?"
+                    value={formData.description}
+                    onChange={(e) => handleInputChange('description', e.target.value)}
+                    className={cn("h-12", errors.description && 'border-destructive focus-visible:ring-destructive/20')}
                     style={{ fontSize: '12px' }}
-                  >
-                    <SelectValue placeholder="Select a category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{cat.icon}</span>
-                          <span>{cat.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.categoryId && (
-                  <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
-                    <span className="w-1 h-1 bg-destructive rounded-full"></span>
-                    {errors.categoryId}
-                  </p>
-                )}
-              </div>
+                  />
+                  {errors.description && (
+                    <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
+                      <span className="w-1 h-1 bg-destructive rounded-full"></span>
+                      {errors.description}
+                    </p>
+                  )}
+                </div>
 
-              {/* Payment Method */}
-              <div className="space-y-2">
-                <Label style={{ fontSize: '12px', fontWeight: '500' }}>Payment Method</Label>
-                <Select
-                  value={formData.paymentMethod}
-                  onValueChange={(value) => handleInputChange('paymentMethod', value)}
-                  required
-                >
-                  <SelectTrigger
-                    className={cn(
-                      "h-12",
-                      errors.paymentMethod && 'border-destructive focus-visible:ring-destructive/20'
-                    )}
-                    style={{ fontSize: '12px' }}
-                  >
-                    <SelectValue placeholder="How did you pay?" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePaymentMethods.map((method) => (
-                      <SelectItem key={method.id} value={method.id}>
-                        <div className="flex items-center gap-2">
-                          <span>{method.icon}</span>
-                          <div>
-                            <div>{method.name}</div>
-                            <div style={{ fontSize: '10px' }} className="text-muted-foreground">
-                              {method.description}
+                {/* Category */}
+                <div className="space-y-2">
+                  <Label style={{ fontSize: '12px', fontWeight: '500' }}>Category</Label>
+                  <Select value={formData.categoryId} onValueChange={(value) => handleInputChange('category', value)}>
+                    <SelectTrigger className={cn("h-12", errors.categoryId && 'border-destructive focus-visible:ring-destructive/20')} style={{ fontSize: '12px' }}>
+                      <SelectValue placeholder="Select a category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availableCategories.map((cat) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{cat.icon}</span>
+                            <span>{cat.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.categoryId && (
+                    <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
+                      <span className="w-1 h-1 bg-destructive rounded-full"></span>
+                      {errors.categoryId}
+                    </p>
+                  )}
+                </div>
+
+                {/* Payment Method */}
+                <div className="space-y-2">
+                  <Label style={{ fontSize: '12px', fontWeight: '500' }}>Payment Method</Label>
+                  <Select value={formData.paymentMethod} onValueChange={(value) => handleInputChange('paymentMethod', value)}>
+                    <SelectTrigger className={cn("h-12", errors.paymentMethod && 'border-destructive focus-visible:ring-destructive/20')} style={{ fontSize: '12px' }}>
+                      <SelectValue placeholder="How did you pay?" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {availablePaymentMethods.map((method) => (
+                        <SelectItem key={method.id} value={method.id}>
+                          <div className="flex items-center gap-2">
+                            <span>{method.icon}</span>
+                            <div>
+                              <div>{method.name}</div>
+                              <div style={{ fontSize: '10px' }} className="text-muted-foreground">
+                                {method.description}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {errors.paymentMethod && (
-                  <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
-                    <span className="w-1 h-1 bg-destructive rounded-full"></span>
-                    {errors.paymentMethod}
-                  </p>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {errors.paymentMethod && (
+                    <p style={{ fontSize: '11px' }} className="text-destructive flex items-center gap-1">
+                      <span className="w-1 h-1 bg-destructive rounded-full"></span>
+                      {errors.paymentMethod}
+                    </p>
+                  )}
+                </div>
+
+                {/* NEW: Event Tag */}
+                <div className="space-y-2">
+                    <Label htmlFor="eventTag" style={{ fontSize: '12px', fontWeight: '500' }}>
+                        Tag Event / Trip (Optional)
+                    </Label>
+                    <div className="relative">
+                        <Tag className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                        <Input
+                            id="eventTag"
+                            placeholder="e.g., Goa Trip, Diwali Shopping"
+                            value={formData.eventTag}
+                            onChange={(e) => handleInputChange('eventTag', e.target.value)}
+                            className="pl-9 h-12"
+                            style={{ fontSize: '12px' }}
+                        />
+                    </div>
+                </div>
+
+                {/* Location (for cash payments) */}
+                {formData.paymentMethod === 'cash' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="location" style={{ fontSize: '12px', fontWeight: '500' }}>
+                      Location (Auto-detected)
+                    </Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="location"
+                        placeholder="Location will be detected automatically"
+                        value={locationLoading ? "Detecting location..." : formData.location}
+                        onChange={(e) => handleInputChange('location', e.target.value)}
+                        className="pl-9 h-12"
+                        style={{ fontSize: '12px' }}
+                        disabled={locationLoading}
+                      />
+                    </div>
+                    <p style={{ fontSize: '10px' }} className="text-muted-foreground flex items-center gap-1">
+                      <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
+                      Location helps track cash spending patterns
+                    </p>
+                  </div>
+                )}
+                
+                {/* Personal/Family Toggle */}
+                {user?.familyId && (
+                    <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-xl">
+                    <input
+                        id="personal"
+                        type="checkbox"
+                        checked={formData.isPersonal}
+                        onChange={(e) => handleInputChange('isPersonal', e.target.checked)}
+                        className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
+                    />
+                    <div>
+                        <Label
+                        htmlFor="personal"
+                        className="cursor-pointer"
+                        style={{ fontSize: '12px', fontWeight: '500' }}
+                        >
+                        Personal expense
+                        </Label>
+                        <p style={{ fontSize: '11px' }} className="text-muted-foreground">
+                        Check this if it's a personal expense not shared with family
+                        </p>
+                    </div>
+                    </div>
                 )}
               </div>
-
-              {/* Location (for cash payments) */}
-              {formData.paymentMethod === 'cash' && (
-                <div className="space-y-2">
-                  <Label htmlFor="location" style={{ fontSize: '12px', fontWeight: '500' }}>
-                    Location (Auto-detected)
-                  </Label>
-                  <div className="relative">
-                    <MapPin className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                    <Input
-                      id="location"
-                      placeholder="Location will be detected automatically"
-                      value={locationLoading ? "Detecting location..." : formData.location}
-                      onChange={(e) => handleInputChange('location', e.target.value)}
-                      className="pl-9 h-12"
-                      style={{ fontSize: '12px' }}
-                      disabled={locationLoading}
-                    />
-                  </div>
-                  <p style={{ fontSize: '10px' }} className="text-muted-foreground flex items-center gap-1">
-                    <span className="w-1 h-1 bg-blue-500 rounded-full"></span>
-                    Location helps track cash spending patterns
-                  </p>
-                </div>
-              )}
               
               {/* Notes */}
               <div className="space-y-2">
@@ -548,31 +588,6 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                 />
               </div>
 
-              {/* Personal/Family Toggle (only if user has family) */}
-              {user?.familyId && (
-                <div className="flex items-center space-x-3 p-4 bg-muted/20 rounded-xl">
-                  <input
-                    id="personal"
-                    type="checkbox"
-                    checked={formData.isPersonal}
-                    onChange={(e) => handleInputChange('isPersonal', e.target.checked)}
-                    className="w-4 h-4 text-primary border-border rounded focus:ring-primary focus:ring-2"
-                  />
-                  <div>
-                    <Label
-                      htmlFor="personal"
-                      className="cursor-pointer"
-                      style={{ fontSize: '12px', fontWeight: '500' }}
-                    >
-                      Personal expense
-                    </Label>
-                    <p style={{ fontSize: '11px' }} className="text-muted-foreground">
-                      Check this if it's a personal expense not shared with family
-                    </p>
-                  </div>
-                </div>
-              )}
-
               {/* Submit Buttons */}
               <div className="flex gap-3 pt-4">
                 <Button
@@ -582,6 +597,8 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                     "gap-2 h-12 px-6 bg-gradient-to-r",
                     formData.type === 'income'
                       ? "from-emerald-500 to-green-500 hover:from-emerald-600 hover:to-green-600"
+                      : formData.type === 'expense' 
+                      ? "from-red-500 to-orange-500 hover:from-red-600 hover:to-orange-600"
                       : "from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600",
                     "text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
                   )}
@@ -592,7 +609,7 @@ export function AddTransactionPage({ onNavigate, viewMode = 'family', user }) {
                   ) : (
                     <Save className="w-4 h-4" />
                   )}
-                  {isLoading ? 'Saving...' : `Save ${formData.type === 'income' ? 'Income' : 'Expense'}`}
+                  {isLoading ? 'Saving...' : `Save ${formData.type.charAt(0).toUpperCase() + formData.type.slice(1)}`}
                 </Button>
 
                 <Button
